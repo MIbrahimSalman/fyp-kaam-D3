@@ -1,0 +1,150 @@
+# Manzil: Intelligent Traffic & Emergency Routing
+
+Final Year Project F26-104, FAST-NUCES Lahore, supervised by Miss Umm-e-Ammarah.
+
+Manzil is a SUMO-based research prototype. It covers:
+- vision-based traffic observation (YOLO + tracking on recorded video);
+- comparative signal control (fixed-time, rule-adaptive, and DQN);
+- congestion-aware ambulance routing with a moving green corridor;
+- a React/FastAPI dashboard for running and comparing experiments.
+
+## Where things are
+
+| Path | Contents |
+|---|---|
+| `PLAN.md` | Phases, tasks, and status |
+| `CLAUDE.md` | Working rules for everyone (and their Claude sessions) |
+| `Manzil_FYP_Context.md` | Full project context; sections 49–50 hold the condensed spec and planning decisions |
+| `F26-104_Project-Proposal.pdf`, `F26-104_Deliverable-2_Report.pdf` | Approved proposal and Deliverable 2 report |
+| `Manzil_D2_Report/`, `FYPFast/` | LaTeX source of the reports |
+| `archive/prototype_v0/` | Earlier non-SUMO prototype, kept for reference only; not part of the current system |
+| `manzil/` | The new Python package (being built from scratch around SUMO) |
+| `manzil/sim/` | `SimulationAdapter` (only code that touches SUMO), network reader, data contracts |
+| `manzil/control/` | Safety filter + monitor, controller interface, fixed-time, adaptive (pressure) and DQN controllers, RL environment |
+| `models/dqn/grid3x3/` | Trained DQN checkpoint (`best.pt`), training log, curve and settings |
+| `manzil/experiments/` | Run config, runner (one experiment → run folder), metrics, batch runner, comparison + plots |
+| `manzil/routing/` | Routing graph from SUMO connections, Eq 5.4 costs, Dijkstra/A*, Algorithm 1 rerouting |
+| `manzil/corridor/` | Moving green corridor (Algorithm 2) |
+| `manzil/api/` | FastAPI service and live-run session for the dashboard |
+| `dashboard/` | React + TypeScript dashboard (Vite) |
+| `manzil/scenarios/` | Grid builder (`grid.py`), seeded demand profiles (`demand.py`), gridlock check (`check.py`) |
+| `scenarios/grid3x3/` | Synthetic 3×3 SUMO network and its README (profiles, calibration, results) |
+| `results/` | Small result summaries kept in git |
+| `tests/` | Automated tests (`pytest`) |
+| `scripts/cloud_setup.sh` | Setup script for Linux and Claude Code cloud sessions |
+
+## Setup
+
+SUMO is installed from PyPI (`eclipse-sumo`, pinned to 1.28.0 in `pyproject.toml`), so every machine gets the same version from one command. There is no need for the separate SUMO Windows installer.
+
+### Windows (team laptops)
+
+Requires Python 3.10 or newer (`py -0` lists installed versions). In the repo folder:
+
+```powershell
+py -3.10 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\python -m pip install -e ".[dev]"
+.venv\Scripts\python -m pytest
+```
+
+Then set `SUMO_HOME` once (replace the path with your own repo location) and reopen the terminal:
+
+```powershell
+.venv\Scripts\python -c "import sumo; print(sumo.SUMO_HOME)"
+setx SUMO_HOME "<path printed above>"
+```
+
+The Manzil code finds SUMO even without `SUMO_HOME`, but SUMO's own tools expect it. `sumo-gui` is at `.venv\Scripts\sumo-gui.exe`.
+
+### Linux, macOS and Claude Code cloud sessions
+
+```bash
+bash scripts/cloud_setup.sh
+```
+
+In a claude.ai/code environment, use `cd fyp-kaam && bash scripts/cloud_setup.sh` as the setup script (it runs from the folder above the repo) and allow network access to package registries. Cloud sessions run SUMO headless (no `sumo-gui`).
+
+### Run one experiment
+
+```bash
+python -m manzil.experiments.runner --profile medium --seed 0
+```
+
+The result goes to `runs/` (git-ignored). See `scenarios/grid3x3/README.md` for the profiles and plans.
+
+Compare controllers over several seeds (parallel), then summarise with plots:
+
+```bash
+python -m manzil.experiments.batch --arms fixed_time fixed_time:equal adaptive --seeds 0 1 2 3 4 --out results/phase2/comparison
+```
+
+```bash
+python -m manzil.experiments.compare results/phase2/comparison/results.csv
+```
+
+### Ambulance experiments
+
+```bash
+python -m manzil.experiments.emergency_study --seeds 0 1 2 3 4 --out results/phase3
+```
+
+Corridor v2 study (task 3.7: why the ambulance stops, candidate fixes; `dqn` needs the `rl` extra):
+
+```bash
+python -m manzil.experiments.corridor_v2_study --out results/phase3/corridor_v2/fixed_time
+python -m manzil.experiments.corridor_v2_study --controller dqn --out results/phase3/corridor_v2/dqn
+python -m manzil.experiments.corridor_v2_study --demo --out results/phase3/corridor_v2/demo_scenario
+python -m manzil.experiments.corridor_v2_report results/phase3/corridor_v2
+```
+
+### DQN (optional `rl` extra)
+
+```bash
+pip install -e ".[rl]" --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+```bash
+python -m manzil.experiments.train_dqn --episodes 200 --out models/dqn/grid3x3
+```
+
+```bash
+python -m manzil.experiments.batch --arms fixed_time adaptive dqn --seeds 0 1 2 3 4 --out results/phase4/comparison
+```
+
+### Dashboard (Phase 5: FastAPI + React)
+
+A live view of one SUMO run: the road map from the `.net.xml`, signal colours at every stop line, vehicles, queues, the ambulance with its route and green-corridor status. From the browser you can start/stop a run, pick the controller (fixed-time, adaptive, DQN), demand and seed, dispatch an ambulance and close a road. Everything shown is the real simulation; each run is saved under `runs/live/` (tripinfo + `summary.json`).
+
+**Windows, one time** (in the repo folder, after the setup above). Install Node.js 20 or newer (LTS) from nodejs.org, then:
+
+```powershell
+.venv\Scripts\python -m pip install -e ".[dev,api]"
+.venv\Scripts\python -m pip install -e ".[rl]" --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+```powershell
+cd dashboard
+npm install
+npm run build
+cd ..
+```
+
+The `rl` line is only needed for the DQN controller (otherwise it shows as unavailable). Rerun `npm run build` after changing anything in `dashboard/src`.
+
+**Windows, every time:**
+
+```powershell
+.venv\Scripts\python -m manzil.api
+```
+
+Open http://127.0.0.1:8000 in the browser. Choose a controller and demand, press **Start run**, then **Dispatch ambulance** (default: south-west corner to the north-east exit). Click a road on the map and press **Close road** to see the ambulance reroute. Stop the server with Ctrl+C.
+
+For frontend work, run the API as above and, in a second terminal, `cd dashboard` then `npm run dev`; open http://localhost:5173 (it reloads on every save and forwards API calls to port 8000).
+
+Linux/macOS: the same commands with `python` instead of `.venv\Scripts\python`. API reference: http://127.0.0.1:8000/docs. Screenshots: `results/phase5/`.
+
+### Checks
+
+- `pytest` passes (includes `tests/test_setup.py`, which runs `sumo` and `netgenerate`)
+- `ruff check manzil tests` and `ruff format --check manzil tests` pass
