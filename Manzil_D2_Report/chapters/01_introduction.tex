@@ -1,7 +1,7 @@
 \chapter{Introduction}
 \label{ch:introduction}
 
-This chapter introduces the Deliverable III report for Manzil, an intelligent traffic and emergency-routing prototype developed as a FAST--NUCES Final Year Project. It states what the report is for, who is expected to read it, and the terms used throughout the later chapters. It also separates work that has been implemented and measured during FYP-I from work that remains planned for FYP-II, because the evaluators asked for working code and the report must not blur that boundary.
+This chapter introduces the Deliverable III report for Manzil, an intelligent traffic and emergency-routing prototype developed as a FAST--NUCES Final Year Project. It states what the report is for, who is expected to read it, and the terms used throughout the later chapters. It also separates work that has been implemented and measured during FYP-I from work that remains planned for FYP-II, and the report keeps that boundary clear.
 
 \section{Purpose of this Document}
 
@@ -15,11 +15,12 @@ The primary audience is the FAST--NUCES FYP supervisor and evaluation panel. The
 
 Key terms and abbreviations used throughout the report are defined below.
 
-\begin{description}[font=\normalfont,leftmargin=0pt,labelindent=0pt,itemindent=0pt,labelsep=0.45em,itemsep=0pt,parsep=0pt,topsep=0.25\baselineskip]
+\begin{description}[font=\normalfont,leftmargin=0pt,itemindent=0.45em,labelsep=0.45em,itemsep=0pt,parsep=0pt,topsep=0.25\baselineskip]
 \item[A*:] A shortest-path search using accumulated cost and an admissible lower-bound heuristic \cite{hart1968astar}.
 \item[API:] Application Programming Interface.
 \item[ByteTrack:] A multi-object tracker that associates high-confidence detections first and then recovers objects from lower-confidence detections \cite{zhang2022bytetrack}.
 \item[CV:] Computer vision used to derive observable traffic indicators from video.
+\item[DQN:] Deep Q-Network, a value-based reinforcement-learning method that approximates action values with a neural network.
 \item[Double DQN:] A Deep Q-Network variant that selects the next action with the online network and evaluates it with a target network to reduce overestimation \cite{vanhasselt2016double}.
 \item[FYP-I / FYP-II:] The first and second semesters of the Final Year Project; this report closes FYP-I.
 \item[Green corridor:] A moving sequence of bounded signal-priority interventions ahead of an ambulance.
@@ -36,6 +37,7 @@ Key terms and abbreviations used throughout the report are defined below.
 \item[UA-DETRAC:] A public benchmark for detecting and tracking vehicles in video from fixed traffic cameras \cite{wen2020uadetrac}.
 \item[Waiting time:] Time accumulated below the configured SUMO speed threshold.
 \item[WAPE:] Weighted absolute percentage error, the sum of absolute count errors divided by the sum of true counts.
+\item[YOLO:] You Only Look Once, a family of one-stage object-detection methods.
 \item[YOLO11s:] The small model of the Ultralytics YOLO11 detector family \cite{ultralytics2024yolo11}.
 \end{description}
 
