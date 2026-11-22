@@ -189,7 +189,7 @@ Manzil is a research prototype, so its tests serve two purposes: they check that
 \bottomrule
 \end{longtable}
 
-The documented test cases follow the test-case format of the FAST template. All of them share the same environment and assumptions, which are therefore stated once in every table header row: the team laptop with Windows 11, Python 3.10, SUMO 1.28.0 from the pinned package list, and pytest; the committed 3$\times$3 grid unless stated otherwise; and a fixed random seed so that each run is repeatable. Each case lists the use case of Chapter \ref{ch:srs} and the functional requirements it verifies, the steps with their individual results, and the automated tests that execute it, so the result can be reproduced by running those tests. Tables \ref{tab:tc01} to \ref{tab:tc13} present the thirteen cases.
+The documented test cases follow the test-case format of the FAST template. All of them share the same environment and assumptions, which are repeated in the header rows of every table: the team laptop with Windows 11, Python 3.10, SUMO 1.28.0 from the pinned package list, and pytest; the committed 3$\times$3 grid unless stated otherwise; and a fixed random seed so that each run is repeatable. Each case lists the use case of Chapter \ref{ch:srs} and the functional requirements it verifies, the steps with their individual results, and the automated tests that execute it, so the result can be reproduced by running those tests. Tables \ref{tab:tc01} to \ref{tab:tc13} present the thirteen cases.
 
 \newcommand{\tcspan}[1]{\multicolumn{3}{p{\dimexpr 0.68\textwidth+4\tabcolsep\relax}|}{#1}}
 \newcommand{\tcres}[1]{\multicolumn{2}{p{\dimexpr 0.36\textwidth+2\tabcolsep\relax}|}{#1}}

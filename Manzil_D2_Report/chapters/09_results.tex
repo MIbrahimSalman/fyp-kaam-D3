@@ -27,7 +27,7 @@ Corridor variants & Six corridor variants & Fixed-time and DQN background contro
 
 \section{Vehicle Detection Results}
 
-Table \ref{tab:detection} compares the fine-tuned detector with the same COCO-pretrained YOLO11s without fine-tuning, both scored on the four project classes of the UA-DETRAC test sequences. Fine-tuning raised mAP50 from 0.752 to 0.799 and mAP50-95 from 0.530 to 0.586, mainly through a large gain in precision for cars and buses. Inference takes about 6.8 ms per 640-pixel image on a Tesla T4.
+Table \ref{tab:detection} compares the fine-tuned detector with the same COCO-pretrained YOLO11s without fine-tuning, both scored on the four project classes of the UA-DETRAC test sequences. Fine-tuning raised mAP50 from 0.752 to 0.799 and mAP50-95 from 0.530 to 0.586, mainly through higher precision (0.748 to 0.889) and higher mAP50 for cars and buses. Inference takes about 6.8 ms per 640-pixel image on a Tesla T4.
 
 \begin{table}[htbp]
 \centering
@@ -54,7 +54,7 @@ Two classes need comment. Truck is the weakest class: UA-DETRAC's ``others'' cat
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.75\textwidth]{figures/results/yolo_pr_curve.png}
-\caption{Precision--recall curves of the fine-tuned detector on the UA-DETRAC test sequences}
+\caption[Precision--recall curves of the fine-tuned detector]{Precision--recall curves of the fine-tuned detector on the UA-DETRAC test sequences}
 \label{fig:yolo-pr}
 \end{figure}
 
@@ -104,11 +104,11 @@ Table \ref{tab:control-results} compares the three controllers on the four deman
 \begin{longtable}{P{0.09\textwidth}P{0.16\textwidth}P{0.09\textwidth}P{0.10\textwidth}P{0.08\textwidth}P{0.27\textwidth}}
 \caption{Signal-control results on the evaluation seeds (mean of 5 seeds)}\label{tab:control-results}\\
 \toprule
-\textbf{Profile} & \textbf{Metric} & \textbf{Fixed} & \textbf{Adaptive} & \textbf{DQN} & \textbf{DQN $-$ fixed (95\,\% CI), seeds better}\\
+\textbf{Profile} & \textbf{Metric} & \textbf{Fixed} & \textbf{Adaptive} & \textbf{DQN} & \textbf{DQN $-$ fixed (s) (95\,\% CI), seeds better}\\
 \midrule\endfirsthead
 \caption[]{Signal-control results on the evaluation seeds (continued)}\\
 \toprule
-\textbf{Profile} & \textbf{Metric} & \textbf{Fixed} & \textbf{Adaptive} & \textbf{DQN} & \textbf{DQN $-$ fixed (95\,\% CI), seeds better}\\
+\textbf{Profile} & \textbf{Metric} & \textbf{Fixed} & \textbf{Adaptive} & \textbf{DQN} & \textbf{DQN $-$ fixed (s) (95\,\% CI), seeds better}\\
 \midrule\endhead
 Light & Travel time (s) & 98.8 & 99.3 & 87.9 & $-$10.9 [$-$11.6, $-$10.2], 5/5\\
  & Waiting time (s) & 23.1 & 22.7 & 13.8 & $-$9.3 [$-$9.9, $-$8.8], 5/5\\
@@ -193,7 +193,7 @@ The corridor reduced the ambulance's travel time by 34 percent on medium and 59 
 \label{fig:corridor}
 \end{figure}
 
-Table \ref{tab:corridor-variants} summarizes the study of corridor variants described in Chapter \ref{ch:implementation}, which led to the 5 s corridor minimum green. With the route-index defect fixed (variant v1), the shortened green (v2) reduced the ambulance's travel time on heavy demand on four of five seeds with fixed-time control and on five of five with the DQN, while cross-street queueing changed by $-$3.7 to +2.4 percent. On medium demand the gain was negligible. Earlier activation gave gains of similar size that varied more between seeds, and raised cross-street queueing by 7 to 14 percent. The corridor also works with the DQN as background controller: with v2, the ambulance's travel time fell from 136.4 s to 101.0 s on medium and from 302.4 s to 124.2 s on heavy demand. Figure \ref{fig:stop-reasons} shows why the ambulance stood still in each variant: with the v1 and v2 corridors, all remaining stops are vehicles queued in front of it or waiting inside a junction, and none is at a red light.
+Table \ref{tab:corridor-variants} summarizes the study of corridor variants described in Chapter \ref{ch:implementation}, which led to the 5 s corridor minimum green. With the route-index defect fixed (variant v1), the shortened green (v2) reduced the ambulance's travel time on heavy demand on four of five seeds with fixed-time control and on five of five with the DQN, while cross-street queueing changed by $-$3.7 to +2.4 percent. On medium demand the gain was negligible. Earlier activation gave gains of similar size that varied more between seeds, and raised cross-street queueing by 4 to 14 percent. The corridor also works with the DQN as background controller: with v2, the ambulance's travel time fell from 136.4 s to 101.0 s on medium and from 302.4 s to 124.2 s on heavy demand. Figure \ref{fig:stop-reasons} shows why the ambulance stood still in each variant: with the v1 and v2 corridors, all remaining stops are vehicles queued in front of it or waiting inside a junction, and none is at a red light.
 
 \begin{table}[htbp]
 \centering
@@ -222,7 +222,7 @@ One caution applies to these corridor numbers. The 5 s corridor minimum was chos
 
 \section{Discussion}
 
-The results support the main idea of the project within the tested conditions. A learned signal controller can reduce travel and waiting time compared with a well-tuned fixed plan, and live travel-time routing and a bounded corridor each give large reductions in ambulance delay, with small measured cost to ordinary traffic and no unsafe signal state in any run. The two emergency mechanisms are complementary: routing avoids a slow road, while the corridor removes waiting at signals on the chosen road. The perception chain counts vehicles with an error of about 12 percent per clip on public video, which is good enough to indicate demand but not yet good enough to replace simulator state in control experiments.
+The results support the main idea of the project within the tested conditions. A learned signal controller can reduce travel and waiting time compared with a well-tuned fixed plan, and live travel-time routing and a bounded corridor each give large reductions in ambulance delay, with small measured cost to ordinary traffic and no unsafe signal state in any run. The two emergency mechanisms are complementary: routing avoids a slow road, while the corridor removes waiting at signals on the chosen road. The perception chain counts vehicles with an overall count error (WAPE) of about 12 percent on public video, which is good enough to indicate demand but not yet good enough to replace simulator state in control experiments.
 
 The results also show trade-offs that a single demonstration would hide. The DQN's gain comes partly from making minor phases wait longer, and only the safety filter's maximum-red guard keeps that wait bounded; a fairness term in the reward or a lower guard would cost some of the travel-time gain. The adaptive controller lowers waiting and queues but not total travel time against a tuned plan, which shows that a responsive rule is not automatically better than a good fixed plan. In perception, fine-tuning helped cars and buses but not trucks, which are rare in the training data, and could not improve motorcycles without local labels.
 

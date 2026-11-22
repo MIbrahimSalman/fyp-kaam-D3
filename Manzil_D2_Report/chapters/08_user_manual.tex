@@ -68,12 +68,12 @@ The controlled experiments are run from the command line rather than the dashboa
 \toprule
 \textbf{Task} & \textbf{Command (after \texttt{python -m})}\\
 \midrule
-One run & \path{manzil.experiments.runner --profile medium --seed 0}\\
-Controller comparison & \path{manzil.experiments.batch --arms fixed_time adaptive dqn --seeds 0 1 2 3 4 --out results/phase4/comparison}\\
-Comparison statistics & \path{manzil.experiments.compare results/phase4/comparison/results.csv}\\
-Routing and corridor & \path{manzil.experiments.emergency_study --seeds 0 1 2 3 4 --out results/phase3}\\
-DQN training & \path{manzil.experiments.train_dqn --episodes 200 --out models/dqn/grid3x3}\\
-Tests & \path{pytest}\\
+One run & \texttt{manzil.experiments.runner -{}-profile medium -{}-seed 0}\\
+Controller comparison & \texttt{manzil.experiments.batch -{}-arms fixed\_time adaptive dqn -{}-seeds 0 1 2 3 4 -{}-out results/\allowbreak{}phase4/\allowbreak{}comparison}\\
+Comparison statistics & \texttt{manzil.experiments.compare results/\allowbreak{}phase4/\allowbreak{}comparison/\allowbreak{}results.csv}\\
+Routing and corridor & \texttt{manzil.experiments.emergency\_study -{}-seeds 0 1 2 3 4 -{}-out results/\allowbreak{}phase3}\\
+DQN training & \texttt{manzil.experiments.train\_dqn -{}-episodes 200 -{}-out models/\allowbreak{}dqn/\allowbreak{}grid3x3}\\
+Tests & \texttt{pytest}\\
 \bottomrule
 \end{tabularx}
 \end{table}
