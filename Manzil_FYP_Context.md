@@ -1830,3 +1830,10 @@ Ibrahim asked for FYP-II work to run in parallel with several Claude agents, wit
 - **Still open:**
   - the Lahore area and hospital (blocks W1);
   - who checks the labelled test subset (W2).
+
+## 50.20 Report Chapter 1 rewritten in plain style (26 Nov 2026)
+
+- Ibrahim asked for Chapter 1 only to be paraphrased: first person ("we", the three authors), short and medium sentences, simple words, no hyphenated words, and no mention of deliverables, FYP-I/FYP-II, the committee or AI. Readers are referred to as "academic readers at FAST--NUCES".
+- Content is unchanged: same built parts, same evidence limits, same definitions (the FYP-I / FYP-II entry was dropped), same chapter roadmap. "FYP-II" is now "the next phase of the project".
+- Terms changed in Chapter 1 only: "Traffic state contract", "Deep Q Network", "Multiple object tracking", "nonfunctional". Other chapters still use the hyphenated forms.
+- Rebuilt `Manzil_D2_Report/build/main.pdf` (150 pages) and copied it to `F26-104_Deliverable-3_Report.pdf`; `check_report.py` passes.

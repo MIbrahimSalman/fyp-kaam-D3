@@ -1,48 +1,61 @@
 \chapter{Introduction}
 \label{ch:introduction}
 
-This chapter introduces the Deliverable III report for Manzil, an intelligent traffic and emergency-routing prototype developed as a FAST--NUCES Final Year Project. It states what the report is for, who is expected to read it, and the terms used throughout the later chapters. It also separates work that has been implemented and measured during FYP-I from work that remains planned for FYP-II, and the report keeps that boundary clear.
+This chapter introduces our report on Manzil. Manzil is a prototype for smart traffic control and emergency routing, and we built it at FAST--NUCES. In this chapter we explain what the report is for and who we wrote it for. We also define the terms that we use in the later chapters. One more point matters to us here. We keep a clear line between the work that we have built and measured so far and the work that we still plan to do. We keep that same line in every chapter of the report.
 
 \section{Purpose of this Document}
 
-This Deliverable III report records the implemented FYP-I state of the Manzil prototype and the evidence produced by it. It presents the requirements, method, and design of the system together with its implementation and measured results. During FYP-I the team built a SUMO-based simulation core with a single simulation adapter and safety filter, fixed-time, pressure-based adaptive, and parameter-sharing Double DQN signal controllers, time-based ambulance routing with closure-triggered rerouting, a moving green corridor, a YOLO-based vehicle detection, tracking, and counting pipeline trained on Kaggle, and a first web dashboard. All controller, routing, and corridor results come from repeated, seeded SUMO runs on a synthetic 3$\times$3 signalized grid, and all perception results come from public UA-DETRAC and COCO data. The report therefore claims measured simulation and video evidence, not field performance or deployment readiness. Any performance statement in this report is tied to a recorded configuration, matched baseline, stated metric, and repeatable set of runs.
+This report describes the current state of the Manzil prototype and the evidence that we have collected from it. It covers the requirements, the method and the design of the system. It also covers how we implemented the system and what results we measured.
+
+So far we have built the following parts. The core of the system is a traffic simulation in SUMO. All of our code talks to SUMO through one simulation adapter, and a safety filter checks every signal change before it is applied. We built three kinds of signal controller. The first is a fixed time controller. The second is an adaptive controller that uses traffic pressure. The third is a Double DQN controller in which all junctions share the same network parameters. For the ambulance, we built routing that uses travel time and that reroutes the ambulance when a road is closed. We also built a green corridor that moves along ahead of the ambulance. For perception, we trained a YOLO model on Kaggle. We then used it in a pipeline that detects, tracks and counts vehicles. Lastly, we built a first version of a web dashboard.
+
+All of our controller, routing and corridor results come from repeated SUMO runs with fixed seeds. These runs use a synthetic 3$\times$3 grid of signalized junctions. All of our perception results come from the public UA-DETRAC and COCO datasets. So the evidence in this report is measured evidence from simulation and from video. We do not claim how the system would perform on real roads, and we do not claim that it is ready to deploy. Whenever we make a statement about performance in this report, we tie it to a recorded configuration and a matched baseline. We also tie it to a stated metric and to a set of runs that anyone can repeat.
 
 \section{Intended Audience}
 
-The primary audience is the FAST--NUCES FYP supervisor and evaluation panel. They require enough detail to judge the relevance of the evaluation objectives, the implemented software, and the validity of the experiments. The report is also an engineering reference for the student implementation team. Team members should be able to derive component responsibilities, interface fields, scenario configurations, fallback behavior, and verification from the chapters that follow. A secondary audience consists of prospective traffic-management and emergency-service stakeholders who may wish to understand the problem, operational assumptions, and limits of the prototype. These stakeholders are not represented as current clients, project partners, or approving authorities. The writing therefore explains domain terms when they first become important, but it retains the precision needed for implementation and academic review. Business-level implications are kept separate from technical evidence, and proposed functions are not described as operational capabilities. This distinction helps each audience find relevant information without confusing a research prototype with an operational traffic-control system.
+We wrote this report mainly for the academic readers at FAST--NUCES who will judge the project. These readers need enough detail to judge whether our objectives make sense. They also need to see what software we built and whether our experiments are valid.
+
+The report is also an engineering reference for us, the three members of the team. From the chapters that follow, each of us should be able to work out what every component is responsible for. Each of us should also be able to find the fields of each interface, the configuration of each scenario, the fallback behavior and the way each part is verified.
+
+There is also a second group of readers. These are people in traffic management and in emergency services. They may want to understand the problem, the assumptions that we make about operations and the limits of the prototype. We do not present these people as our current clients, our partners or our approving authorities.
+
+For this reason, we explain each domain term when it first becomes important. At the same time, we keep the level of detail that is needed for implementation and for academic review. We keep business points apart from technical evidence. We also do not describe a proposed function as if it already works. In this way each reader can find the part that matters to them. Nobody should mistake our research prototype for a traffic control system that is in real use.
 
 \section{Definitions, Acronyms, and Abbreviations}
 
-Key terms and abbreviations used throughout the report are defined below.
+We define below the main terms and abbreviations that we use in this report.
 
 \begin{description}[font=\normalfont,leftmargin=0pt,itemindent=0.45em,labelsep=0.45em,itemsep=0pt,parsep=0pt,topsep=0.25\baselineskip]
-\item[A*:] A shortest-path search using accumulated cost and an admissible lower-bound heuristic \cite{hart1968astar}.
+\item[A*:] A shortest path search. It adds up the cost so far and uses a lower bound heuristic that never overestimates the remaining cost \cite{hart1968astar}.
 \item[API:] Application Programming Interface.
-\item[ByteTrack:] A multi-object tracker that associates high-confidence detections first and then recovers objects from lower-confidence detections \cite{zhang2022bytetrack}.
-\item[CV:] Computer vision used to derive observable traffic indicators from video.
-\item[DQN:] Deep Q-Network, a value-based reinforcement-learning method that approximates action values with a neural network.
-\item[Double DQN:] A Deep Q-Network variant that selects the next action with the online network and evaluates it with a target network to reduce overestimation \cite{vanhasselt2016double}.
-\item[FYP-I / FYP-II:] The first and second semesters of the Final Year Project; this report closes FYP-I.
-\item[Green corridor:] A moving sequence of bounded signal-priority interventions ahead of an ambulance.
-\item[MAE:] Mean absolute error, the average absolute difference between estimated and true values.
-\item[mAP50:] Mean average precision at an intersection-over-union threshold of 0.5, a standard detection accuracy measure.
-\item[MOT:] Multi-object tracking, which associates detections into identities across video frames.
-\item[Queue proxy:] An estimate of tracked slow or stationary vehicles in a defined lane region.
-\item[RL:] Reinforcement learning, in which a policy is optimized using states, actions, and cumulative reward.
-\item[Signal preemption:] A controlled signal change for an emergency request, including transition and recovery.
-\item[SUMO:] Simulation of Urban MObility, a microscopic road-traffic simulator.
-\item[Throughput:] Vehicles leaving a measured movement or network region per unit time.
-\item[TraCI:] Traffic Control Interface for reading and changing a running SUMO simulation; libsumo offers the same interface inside the Python process.
-\item[Traffic-state contract:] A versioned observation structure with source, time, units, confidence, and validity.
+\item[ByteTrack:] A tracker for multiple objects. It first matches the detections with high confidence. It then uses the detections with lower confidence to recover objects that it would otherwise lose \cite{zhang2022bytetrack}.
+\item[CV:] Computer vision. In this report we use it to get traffic indicators that can be observed from video.
+\item[DQN:] Deep Q Network. It is a reinforcement learning method that uses a neural network to estimate the value of each action.
+\item[Double DQN:] A version of DQN that picks the next action with the online network and then scores that action with a target network. This reduces overestimation \cite{vanhasselt2016double}.
+\item[Green corridor:] A sequence of limited signal priority changes that moves along ahead of an ambulance.
+\item[MAE:] Mean absolute error. It is the average absolute difference between the estimated values and the true values.
+\item[mAP50:] Mean average precision when the intersection over union threshold is 0.5. It is a standard measure of detection accuracy.
+\item[MOT:] Multiple object tracking. It links detections across video frames so that each object keeps one identity.
+\item[Queue proxy:] An estimate of the number of tracked vehicles that are slow or stopped in a defined lane region.
+\item[RL:] Reinforcement learning. In RL a policy is improved using states, actions and the total reward over time.
+\item[Signal preemption:] A controlled change of signal for an emergency request. It includes the change itself and the recovery after it.
+\item[SUMO:] Simulation of Urban MObility. It is a microscopic road traffic simulator.
+\item[Throughput:] The number of vehicles that leave a measured movement or network region in a unit of time.
+\item[TraCI:] Traffic Control Interface. It lets a program read and change a SUMO simulation while the simulation runs. libsumo offers the same interface inside the Python process.
+\item[Traffic state contract:] A versioned structure for observations. It records the source, time, units, confidence and validity of each observation.
 \item[UA-DETRAC:] A public benchmark for detecting and tracking vehicles in video from fixed traffic cameras \cite{wen2020uadetrac}.
-\item[Waiting time:] Time accumulated below the configured SUMO speed threshold.
-\item[WAPE:] Weighted absolute percentage error, the sum of absolute count errors divided by the sum of true counts.
-\item[YOLO:] You Only Look Once, a family of one-stage object-detection methods.
-\item[YOLO11s:] The small model of the Ultralytics YOLO11 detector family \cite{ultralytics2024yolo11}.
+\item[Waiting time:] The time that a vehicle spends below the speed threshold that we set in SUMO.
+\item[WAPE:] Weighted absolute percentage error. It is the sum of the absolute count errors divided by the sum of the true counts.
+\item[YOLO:] You Only Look Once. It is a family of single stage object detection methods.
+\item[YOLO11s:] The small model in the Ultralytics YOLO11 detector family \cite{ultralytics2024yolo11}.
 \end{description}
 
 \section{Conclusion}
 
-This chapter has established Manzil as a reproducible investigation of interacting traffic decisions rather than a collection of unrelated artificial-intelligence features. The system studies how observable traffic conditions can inform signal control, how dynamic routing can respond to network delay, and how an ambulance can receive temporary priority without ignoring ordinary traffic. It has also fixed the evidence boundary for this deliverable. The repository now contains implemented controllers, a trained detector and DQN policy, a validated synthetic SUMO network, and recorded experimental results, so these are reported as measured evidence. The Lahore road network, the full five-screen dashboard with a database, filmed local video, and the full ten-seed protocol remain FYP-II work and are described as planned. The defined terminology prevents video-derived proxies from being confused with exact simulator state and distinguishes a moving corridor from an unsafe instruction to turn every signal green. A choice is described as implemented only where its code, configuration, test evidence, or experimental record exists in the project repository.
+In this chapter we presented Manzil as one study of several traffic decisions that affect each other. We also built it so that others can repeat our work. The system looks at how observed traffic conditions can guide signal control. It looks at how routing can react to delay in the network. It also looks at how an ambulance can get priority for a short time while normal traffic still keeps moving.
 
-The rest of the report is organized as follows. Chapter \ref{ch:vision} presents the project vision, objectives, and scope. Chapter \ref{ch:literature} reviews the related research on traffic perception, signal control, reinforcement learning, and emergency routing. Chapter \ref{ch:srs} specifies the functional and non-functional requirements. Chapter \ref{ch:method} describes the approach and the experimental protocol. Chapter \ref{ch:design} gives the high-level and low-level design. Chapter \ref{ch:implementation} describes the implementation and its test cases. Chapter \ref{ch:manual} is the user manual of the prototype. Chapter \ref{ch:results} reports and discusses the experimental results. Chapter \ref{ch:conclusion} concludes FYP-I and gives the plan for FYP-II.
+We also set the limits of our evidence in this chapter. Our repository now contains working controllers, a trained detector and a trained DQN policy. It also contains a synthetic SUMO network that we have validated and the recorded results of our experiments. We report all of these as measured evidence. Some work is still left for the next phase of the project. This work includes the Lahore road network and the full dashboard with five screens and a database. It also includes video that we film locally and the full protocol with ten seeds. We describe all of this as planned work.
+
+The terms that we defined above help in two ways. They keep the estimates that we get from video apart from the exact state that the simulator gives us. They also make clear that a moving corridor is a set of limited changes. It does not mean that every signal is simply turned green. In this report we call something implemented only if its code, configuration, test evidence or experiment record exists in our project repository.
+
+The rest of the report is organized as follows. Chapter \ref{ch:vision} presents the vision, objectives and scope of the project. Chapter \ref{ch:literature} reviews related research on traffic perception, signal control, reinforcement learning and emergency routing. Chapter \ref{ch:srs} gives the functional and nonfunctional requirements. Chapter \ref{ch:method} explains our approach and our experimental protocol. Chapter \ref{ch:design} gives the high level design and the low level design. Chapter \ref{ch:implementation} describes the implementation and its test cases. Chapter \ref{ch:manual} is the user manual for the prototype. Chapter \ref{ch:results} reports our experimental results and discusses them. Finally, Chapter \ref{ch:conclusion} concludes the report and gives our plan for the next phase of the work.
