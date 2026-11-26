@@ -1,0 +1,153 @@
+6.4 Architectural Strategies
+
+The architectural strategies explain the cross-cutting choices that shape every component: technologies,
+reuse, extension points, version control, interface style, storage, and concurrency. Each strategy is stated
+together with the reason for it and the cost it introduces. The subsections note where the prototype uses
+a simpler form, for example file storage or offline perception.
+
+6.4.1 Choice of Technologies
+
+Python, SUMO, TraCI, FastAPI, React, and structured persistence match the approved proposal and
+divide research computation from presentation. Python supports controllers, routing, perception, and
+analysis; SUMO supplies reproducible traffic dynamics; FastAPI defines validated contracts; and React
+supports independent dashboard views. Versions are written to run manifests. The selected implemen-
+tations are Ultralytics YOLO11s with ByteTrack for perception, PyTorch for the Double DQN, and
+versioned files instead of a database engine. Selection also reflects team feasibility: these technologies
+run locally, expose documented interfaces, and support automated testing without requiring proprietary
+traffic infrastructure. SUMO is retained over a throughput-oriented alternative because its network, vehi-
+cle, signal, and TraCI tooling align with the approved scope. FastAPI and React add a service boundary
+but allow the research core and interface to evolve independently. A technology is not accepted solely
+because it is popular; its version, configuration, licence, input assumptions, and effect on timing or
+metrics must be recorded for the experiment that uses it.
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  76
+
+6.4.2 Reuse of Existing Software Components
+
+Manzil reuses SUMO traffic models, TraCI primitives, OpenStreetMap conversion tools, computer-
+vision libraries, and standard graph algorithms. Adapters bound this reuse so an external package cannot
+define project semantics implicitly. Imported networks are checked for connectivity and signal legality,
+model checkpoints retain provenance, and route costs state their units and observation time. Manzil
+contributes experiment, safety, corridor, audit, and comparison logic that combines these components
+consistently. Reuse reduces implementation risk but does not transfer responsibility for validation to a
+library. The network importer must still confirm turn connections and traffic-light programs; the per-
+ception pipeline must still evaluate selected checkpoints and tracking rules on the intended footage; and
+the routing service must still build a legal vehicle-movement graph. Third-party defaults are captured in
+manifests when they affect results. External components are accessed through project-owned interfaces
+so a library upgrade or replacement produces an explicit compatibility change instead of silently altering
+stored evidence or control behavior.
+
+6.4.3 Future Extension and Enhancement
+
+Versioned contracts and repository interfaces allow later support for additional corridors, several emer-
+gency vehicles, new observation sources, distributed training, or a different simulator. These are ex-
+tension points rather than current capabilities. Any extension must preserve single ownership, causal
+event ordering, legal phase transitions, and explicit comparison manifests so increased scale does not
+weaken the evidence model. Multiple emergency vehicles would require a conflict-resolution policy
+rather than simply creating more corridor requests. A live camera source would require privacy review,
+calibration, clock synchronization, and monitored failure behavior. Distribution would require authen-
+ticated service boundaries and a stronger event-delivery model, while a simulator replacement would
+require an adapter capable of reproducing the same snapshot and applied-action semantics. Keeping
+these possibilities outside the current claim avoids implying unfinished functionality, yet documenting
+their architectural seams prevents short-term choices from closing a reasonable development path.
+
+6.4.4 Version Control
+
+Git maintains source code, schemas, scenarios, and report figures. Each retained experiment records its
+commit identifier, dependency lock, model checksum, network and demand versions, controller config-
+uration, and metric schema. Demonstration and result releases are tagged. Generated outputs do not re-
+place source configuration, and secrets or machine-specific paths are excluded from portable manifests.
+Feature work is reviewed through branches or equivalent isolated changes before it is incorporated into
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  77
+
+an evidence-producing release. Schema and contract changes require coordinated fixtures and migration
+notes; a commit that changes the meaning of a metric also increments its definition version. Large model,
+video, and run artifacts are referenced by checksums rather than committed indiscriminately. This policy
+links every reported result to an inspectable software state while keeping the repository manageable. It
+also allows an evaluator to distinguish an exact reproduction from a later rerun made after code, data, or
+configuration changed.
+
+6.4.5 User Interface Paradigm
+
+The interface uses task-oriented screens and a unidirectional command-and-view model. Operators con-
+figure runs, monitor network and mission state, inspect provenance, and review evidence without directly
+manipulating the simulator. Validation errors are tied to fields; colors have textual labels; units and fresh-
+ness remain visible; and measured results remain distinct from schematic values. These rules implement
+Section 4.8 and permit browser reconnection without transferring control ownership. Screen identifiers
+and navigation reflect the user’s workflow from configuration through monitoring to comparison, while
+specialist details remain available without crowding the overview. Emergency state is displayed with
+route version, lifecycle state, and warnings instead of a single ambiguous priority indicator. Analytics
+disclose sample count, variability, failed runs, metric definition, and configuration differences near each
+comparison. The interface therefore supports operational awareness and academic review, but it never
+presents unimplemented fields, schematic charts, or stale streams as measured evidence.
+
+6.4.6 External Database and Data Storage Management
+
+Structured configuration, events, routes, and metrics follow Section 4.9; videos, models, and logs re-
+main checksummed external artifacts. A repository interface permits file-backed integration and later
+PostgreSQL use without changing domain meaning. FYP-I uses the file-backed form: each run writes
+a manifest, metrics, time series, signal events, applied controls, and mission records into its own folder,
+and comparisons refuse runs whose network, demand, protocol, or metric versions differ. Immutable
+completed-run configuration and versioned metrics protect comparison integrity; schema migrations
+and referential constraints are part of the FYP-II database design. Bounded buffering may tolerate a
+temporary write failure, but processing stops before evidence loss becomes unbounded. Run manifests
+record identifiers and provenance for external artifacts so a run does not depend on an unexplained local
+filename. Observation ownership is exclusive, route versions increase monotonically, and priority events
+retain the route that justified them. Applied control records are authoritative for evaluation because a
+safety intervention may differ from the controller request. Backup and export procedures include mani-
+fests and schema versions, while credentials and licensed content remain outside research exports. These
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                         78
+
+measures keep storage decisions aligned with auditability rather than treating persistence as a passive
+logging concern.
+
+6.4.7 Concurrency and Synchronization
+
+The orchestrator is the only simulation-step owner, and TraCI access is serialized through the adapter.
+Controllers receive immutable snapshots and return requests instead of mutating shared state. Perception
+uses a bounded queue, dashboard streams may skip views without delaying control, and route publica-
+tion is atomic with cancellation of obsolete corridor work. Shutdown rejects new commands, terminates
+or detaches SUMO safely, flushes records, and assigns an explicit terminal state. Simulation time, mono-
+tonic event sequence, and wall-clock time are stored separately because inference and persistence delays
+must not be mistaken for traffic causality. A late observation is marked stale or omitted according to pol-
+icy instead of blocking the loop indefinitely. The active route version changes together with invalidation
+of its old requests, preventing two paths from owning the same corridor. Database batches may improve
+throughput, but applied actions and mission transitions must first enter a durable bounded queue. These
+rules define synchronization even when all components run on one machine.
+
+6.5 Domain Model/Class Diagram
+
+Scenario                 1:N       ExperimentRun          TrafficSnapshot
+network, demand       0..1 active  id, seed, status       source, step, validity
+
+                                                1      ControlDecision
+                                                       requested, applied, reason
+EmergencyMission                   Orchestrator
+origin, destination, status        step(), schedule()    SafetyFilter
+                                                         validate(), transform()
+      1:N                          Controller
+                                   requestAction()        SimulationAdapter
+RouteVersion                                              advance(), apply()
+edges, cost, trigger
+
+     0:N
+
+CorridorState
+intersection, state
+
+Figure 6.2: Domain model/class diagram
+
+Figure 6.2 presents the core domain objects and their relationships independently of a particular web
+or database framework. A Scenario can produce many ExperimentRun records, while each run has one
+orchestrator that schedules controllers and the sole simulation adapter. The model deliberately separates
+a ControlDecision’s requested phase from its applied phase. A controller can request an early or other-
+wise invalid switch, but the SafetyFilter validates or transforms that request before the adapter can reach
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                    79
+
+SUMO. TrafficSnapshot carries source, simulation step, and validity so a decision can be traced to the
+observation it used. A run has at most one active EmergencyMission in the core scope. That mission
+owns immutable RouteVersion objects, and each version can justify several CorridorState records. Con-
+necting the corridor to the same SafetyFilter makes clear that normal and emergency actions share legal-
+transition enforcement. The implementation follows these cardinalities, the single-writer path, route
+versioning, and the requested-versus-applied distinction. In the code, ControlDecision corresponds to
+ControlRequest and AppliedControl, RouteVersion to RoutePlan, and CorridorState to the state held by
+CorridorCoordinator, while MissionDriver drives the ambulance mission.

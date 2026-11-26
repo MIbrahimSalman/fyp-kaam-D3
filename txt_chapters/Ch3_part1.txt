@@ -1,0 +1,169 @@
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  11
+
+Chapter 3 Literature Review / Related Work
+
+This chapter examines the research needed to justify Manzil’s design rather than treating the use of fa-
+miliar tools as a contribution. The review is organized around five decisions: how traffic is observed,
+how normal signals are controlled, how learned policies are evaluated, how emergency routes are se-
+lected, and how signal priority is activated and recovered. Each study is considered in its original data or
+simulation setting because reported values from incompatible benchmarks cannot be treated as a com-
+mon comparison. The discussion identifies the method, evidence, limitations, and direct implication for
+a Manzil design choice. Research papers are distinguished from official software documentation, which
+is used to establish interface capabilities but is not counted toward the study requirement. The purpose
+is not to assemble every publication on intelligent transportation. It is to establish whether the selected
+components are technically defensible, which assumptions must be recorded, and where a controlled
+undergraduate experiment can add useful evidence. The final synthesis consequently states a precise
+integration question instead of claiming that the use of YOLO, reinforcement learning, or shortest-path
+search is itself novel.
+
+3.1 Definitions, Acronyms, and Abbreviations
+
+Additional terms used specifically in the literature review are defined below.
+
+IDF1: Identity F1 score, a tracking measure based on correctly identified detections across a sequence.
+IoU: Intersection over Union, the overlap ratio commonly used when matching a predicted bounding
+box with a reference box.
+mAP: Mean Average Precision, a detection measure aggregated across classes or overlap thresholds
+under a stated protocol.
+MARL: Multi-agent reinforcement learning, in which several decision-making agents learn within a
+shared environment.
+MDP: Markov Decision Process, a formal model of states, actions, transitions, and rewards used to
+define an RL problem.
+OSM: OpenStreetMap, the collaborative geographic data source considered for preparing the SUMO
+road network.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  12
+
+3.2 Detailed Literature Review
+
+The approved proposal supplied the initial bibliography, after which each retained study was checked
+against a publisher page, proceedings record, DOI, or official open-access paper. Selection required
+direct relevance to vehicle detection and tracking, traffic-state estimation, signal control, simulation,
+graph routing, or emergency preemption. The review also applies consistent terminology. Detection
+refers to locating and classifying vehicles within one frame, while tracking refers to associating those
+observations through time. A detector therefore cannot produce reliable passage counts by itself. Signal
+priority describes preferential treatment that may remain within normal timing constraints, whereas
+preemption may interrupt normal operation for an emergency request. Manzil uses the term moving
+green corridor for a coordinated sequence of bounded interventions ahead of the ambulance, not for a
+permanently green route. These distinctions affect the interpretation of prior results and the design of
+the experiments. A paper reporting benchmark detection accuracy does not establish a calibrated queue
+estimate, and a study of isolated preemption does not automatically validate network-level routing. The
+following sections preserve those boundaries when relating the literature to Manzil.
+
+3.2.1 Vision-Based Traffic Observation
+
+This theme reviews how vehicles are detected in single frames, associated into tracks over time, and
+evaluated on traffic datasets. It matters for Manzil because counts and queue indicators are only as reli-
+able as the complete detection, tracking, and region-assignment chain. The review informed three FYP-I
+choices: a YOLO-family detector fine-tuned rather than used unchanged, ByteTrack as the tracker, and
+UA-DETRAC as the main evaluation source with a split by whole sequence. The subsections below
+review one-stage detection, multi-object tracking, and the traffic datasets used for evaluation.
+
+3.2.1.1 One-Stage Detection
+
+Redmon et al. formulated YOLO as a single network that predicts bounding boxes and class probabil-
+ities from an image in one evaluation [7]. The study established the feasibility of real-time one-stage
+detection and reported a strong speed advantage, while also identifying localization error as a relative
+weakness. The design is relevant to Manzil because a compact inference path is practical for recorded
+traffic video and may later support a live demonstration on available hardware. The evidence does not
+establish accuracy for every vehicle class, road layout, camera height, weather condition, or Lahore
+traffic scene. A selected pretrained checkpoint must therefore be evaluated on the project’s own held-
+out sequences, and confidence or intersection-over-union thresholds cannot be copied from an unrelated
+benchmark. Frame-level boxes also do not provide stable counts by themselves. The same vehicle may
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  13
+
+be detected in many frames, an occluded vehicle may disappear temporarily, and perspective changes
+apparent size across the image. Manzil consequently treats one-stage detection as the first part of a
+measurement pipeline that also requires tracking, road-region assignment, temporal aggregation, and
+explicit uncertainty.
+
+3.2.1.2 Multi-Object Tracking
+
+Wojke et al. extended a simple online tracker with a learned appearance metric to improve associa-
+tion through longer occlusions [8]. Appearance information can reduce identity switches, but it adds
+a feature-extraction model, processing cost, and sensitivity to domain differences. ByteTrack follows
+a different strategy by associating high-confidence detections first and then attempting to recover true
+objects from lower-confidence boxes rather than discarding them [2]. The authors evaluated it across
+several tracking benchmarks and reported strong accuracy with real-time throughput on their stated hard-
+ware. This approach is relevant to traffic video because occlusion and motion blur often reduce detection
+confidence. Neither benchmark establishes Manzil’s processing speed, lane assignment, or queue accu-
+racy. An identity-preserving track still requires a road-contact point, direction rule, and region geometry
+before it becomes a valid traffic observation. These studies therefore motivate an empirical tracker
+choice based on held-out count error, identity stability where identities are needed, failure under oc-
+clusion, and end-to-end throughput on the team’s hardware. If a simpler association method produces
+equally reliable aggregate counts, its lower complexity may be preferable.
+
+3.2.1.3 Traffic Datasets and Relevance to Manzil
+
+BDD100K provides a large and diverse driving dataset with detection, tracking, and other driving-
+scene annotations collected across varied locations, weather, and times [9]. Its diversity is useful for
+model initialization and stress testing, although its primarily vehicle-mounted viewpoint differs from a
+fixed roadside or elevated camera. UA-DETRAC focuses directly on vehicle detection and tracking in
+traffic-surveillance video, making its camera geometry and evaluation protocol closer to an intersection-
+observation task [4]. Its scenes still cannot be assumed to represent Lahore traffic composition, mo-
+torcycle and rickshaw prevalence, lane discipline, lighting, or camera placement. The two datasets are
+therefore complementary references rather than automatic substitutes for local validation. Manzil uses
+licensed public sequences, mainly UA-DETRAC, for reproducible evaluation, and a small, separately
+documented Lahore sample is planned for FYP-II. These datasets also influence the split strategy. Adja-
+cent video frames are highly correlated, so a random frame split can place nearly identical observations
+in training and test data. The project therefore splits by continuous sequence, retains a held-out evalua-
+tion set, and does not tune thresholds on that set.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  14
+
+3.2.2 Conventional and Adaptive Signal Control
+
+This theme covers the non-learning controllers that any learned policy must be compared against. A
+credible fixed-time plan and a transparent traffic-responsive rule are needed both as baselines and as di-
+agnostic references for the simulation and metrics. In FYP-I, Manzil implemented a fixed-time controller
+with plans tuned per demand profile and a pressure-based adaptive controller derived from max-pressure
+control, both constrained by the same safety filter. The subsections below review the role of fixed timing,
+the max-pressure basis of the adaptive rule, and how both shape the comparison.
+
+3.2.2.1 Fixed-Time Baseline
+
+A fixed-time controller remains necessary even when it is not expected to dominate every scenario. It
+provides a stable reference against which the value of traffic-responsive decisions can be measured,
+and it helps reveal whether demand generation or metric collection is biased before more complex con-
+trollers are introduced. The baseline must be credible rather than deliberately weak. Manzil therefore
+documents its phase sequence, green times, yellow and all-red clearance, cycle length, offsets where
+relevant, minimum service, and the demand conditions used to choose those settings. The same phase
+definitions and safety transitions are shared with the adaptive and learned controllers so that a compari-
+son does not reward one controller for using an illegal or more permissive movement set. Fixed timing is
+also useful for route and corridor ablations because its behavior is deterministic and easy to reproduce.
+If the fixed plan is severely under-saturated or over-saturated in every scenario, differences in controller
+performance will be difficult to interpret. A capacity and queue check therefore confirms that the sce-
+nario family contains meaningful light, medium, and heavy conditions instead of a single demand level
+chosen to favor adaptation.
+
+3.2.2.2 Max-Pressure Control
+
+Varaiya formalized max-pressure control for a network of signalized intersections using differences be-
+tween upstream and downstream queue conditions [10]. Selecting a phase that reduces network pressure
+has a clearer transportation basis than combining arbitrary percentages without explaining what the score
+represents. The approach is responsive and can operate from local movement information, which makes
+it a valuable non-learning reference for Manzil. Its assumptions still matter. Queue observations must
+correspond to valid movements, downstream storage must be represented, and a theoretical selection
+rule does not remove practical minimum-green, yellow, all-red, or maximum-red constraints. Manzil’s
+rule-based adaptive controller therefore uses a pressure-inspired score computed from the upstream and
+downstream queues of each phase. Waiting time and a maximum-red limit remain as explicit fairness
+safeguards so that a low-volume approach is not postponed indefinitely. The controller also provides a
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  15
+
+reason for each request, allowing reviewers to see which queues and constraints influenced the decision.
+This transparency makes the baseline useful even if the later reinforcement-learning policy does not
+outperform it.
+
+3.2.2.3 Relevance to Manzil
+
+The conventional-control literature determines both the baseline design and the limits of any later com-
+parison. Manzil implements a documented fixed plan first because it provides a stable reference for vali-
+dating demand, signal transitions, and metric collection. A pressure-inspired controller then responds to
+current movement conditions while using the same legal phases, yellow intervals, all-red clearance, and
+minimum-service rules. This shared safety envelope prevents the adaptive method from gaining an arti-
+ficial advantage through a more permissive phase program. The rule-based controller must also expose
+the queues, downstream conditions, waiting time, and constraint that produced each requested action.
+Such records make an unexpected result diagnosable and provide a meaningful comparison for a learned
+policy. Evaluation covers light, medium, heavy, and uneven demand with matched seeds rather than one
+scenario selected after observing the outcome. Network averages are accompanied by maximum queues
+and maximum-red or fairness measures, since a lower mean delay can hide repeated postponement of a
+lightly loaded approach. These decisions convert the reviewed theory into an auditable baseline rather
+than an informal demonstration.

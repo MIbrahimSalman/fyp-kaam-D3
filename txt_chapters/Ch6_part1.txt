@@ -1,0 +1,179 @@
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  66
+
+Chapter 6 High-Level and Low-Level Design
+
+This chapter maps the requirements and methodology to a service-oriented prototype design that can
+be implemented incrementally on the team’s available machines. The decomposition protects experi-
+mental determinism by assigning the simulation clock and all signal actuation to one adapter. The API,
+dashboard, perception worker, controllers, routing logic, and experiment store exchange typed mes-
+sages without competing for that authority. The design also separates a requested decision from the
+action applied after safety checks, preserves the source and effective time of every traffic snapshot, and
+binds corridor requests to an immutable route version. These choices support replay and fault diagnosis
+without requiring a prematurely distributed deployment. Interfaces may initially be implemented as in-
+process modules, provided that they retain the same ownership boundaries and contracts. The chapter
+moves from architecture and domain objects to interaction sequences, state transitions, data contracts,
+synchronization, failure handling, module policies, and testing so each important requirement has a vis-
+ible design consequence. In FYP-I the design was implemented as one Python package with a separate
+React dashboard. Chapter 7 maps each design component to the module that implements it.
+
+6.1 System Overview
+
+The system must support repeatable research runs, an interactive demonstration, and post-run analysis
+without allowing presentation concerns to alter experimental state. Its main design goals are determin-
+istic ownership of state changes, replaceable controller and perception implementations, explicit time
+and units, safe corridor transitions, immutable run configuration, and visible failure. Performance is
+optimized only after these properties are preserved because a faster result is not useful when its source,
+phase legality, or causal order is uncertain. The design assumes one machine or a small development
+deployment for the FYP prototype. Logical separation therefore does not imply a network service for
+every box in the diagrams. The orchestrator, controllers, routing logic, and repositories may begin as
+in-process modules behind typed interfaces, while video inference can move to a bounded worker when
+profiling shows it would block the control loop. This approach keeps deployment manageable but pre-
+serves a path to isolate resource-heavy components without changing experimental semantics.
+
+6.1.1 Operator Interface and Commands
+
+The operator uses a React dashboard for configuration, monitoring, emergency, and analysis tasks. Com-
+mands pass through FastAPI validation before reaching the experiment service or orchestrator. The in-
+terface cannot step SUMO, apply a phase, or alter an active run’s immutable configuration. Responses
+include source, simulation step, freshness, and status so the dashboard can distinguish current evidence
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  67
+
+from a stale or unavailable view. Configuration commands resolve network, controller, seed, duration,
+incident, mission, and metric identifiers before a run begins. Monitoring queries expose requested and
+applied actions separately, while emergency commands return the route version and corridor state af-
+fected by the request. The evaluator can inspect completed and failed runs without receiving mutation
+privileges. A disconnected browser may reconnect from the current snapshot and event cursor, but
+it cannot replay an old command automatically. These rules make the graphical interface useful for
+demonstration and review without creating a second, poorly controlled path into the traffic simulation.
+
+6.1.2 Traffic Observation and Simulation
+
+SUMO provides authoritative traffic state for controlled experiments, while a bounded perception worker
+supports recorded-video observation. The traffic-state service normalizes either source without present-
+ing video proxies as simulator measurements. Only the SUMO/TraCI adapter owns simulation stepping,
+subscriptions, and applied signal changes. Perception reports model version, input provenance, confi-
+dence, and freshness, preserving a clear record of what information was available to each decision. A
+simulator snapshot can include exact vehicle, lane, signal, and route values available through TraCI. A
+video snapshot contains only quantities justified by the selected detector, tracker, road regions, and cal-
+ibration; missing physical values remain unavailable instead of being replaced by zero. Both snapshots
+identify the time at which values became effective and the period for which they remain valid. The con-
+trol loop uses one declared source mode per experiment, while offline perception jobs can be assessed
+independently against labelled footage. This boundary prevents the report from treating visual detection
+output as equivalent to controlled simulator ground truth.
+
+6.1.3 Adaptive Control and Emergency Routing
+
+Normal traffic control and emergency priority share the safety filter but remain separate decision con-
+cerns. Fixed-time, pressure-inspired, and learned controllers return requested actions through a common
+interface. Routing creates immutable, time-costed ambulance paths, and the corridor coordinator trans-
+lates the current route into bounded priority requests. Neither module actuates a signal directly; every
+request must satisfy legal phase, clearance, ownership, expiry, and recovery rules. The common con-
+troller interface supplies the same snapshot, legal phases, decision interval, and explanation fields to
+each normal strategy so comparison is not distorted by different privileges. Emergency operation is su-
+pervisory: it temporarily owns selected intersections through an explicit state machine and returns them
+to a valid normal boundary after passage, cancellation, or timeout. Rerouting creates a new route ver-
+sion and cancels obsolete future requests before activating the revised look-ahead set. Separating route
+choice, corridor priority, normal control, and safety enforcement permits useful ablation experiments
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                                                        68
+
+and makes a rejected decision traceable to its responsible component.
+
+6.1.4 Experiment and Evaluator Interaction
+
+                                                                React dashboard
+                                                             operator and evaluator
+
+                                                                            REST / stream
+                                                               FastAPI boundary
+                                                             validation and queries
+
+   Experiment service         Control orchestrator                                         Traffic-state service
+config, lifecycle, metrics  ordering and ownership                                           typed snapshots
+
+Controller registry               Safety filter                                            Routing and corridor
+ fixed / rule / RL          legal phase transitions                                          mission lifecycle
+
+ Experiment store               SUMO/TraCI adapter                                         Perception worker
+repository interface        sole step and actuation owner                                  detector / tracker
+
+                            SUMO process                                                   Recorded video
+
+                            Figure 6.1: High-level architecture
+
+Figure 6.1 shows the command and evidence paths around the single-owner simulation core. The React
+dashboard sends configuration or mission commands through FastAPI and receives non-authoritative
+views; it never calls TraCI. The orchestrator follows Algorithm 3, requests decisions from the selected
+normal controller or corridor coordinator, and sends validated actions to the adapter. Only that adapter
+advances SUMO and applies signal changes. The traffic-state service constructs source-specific snap-
+shots from simulator observations or perception messages while preserving effective time, units, confi-
+dence, and validity. Routing maintains mission and route versions, and the corridor coordinator owns
+intersection-level priority lifecycles. The experiment service validates run configuration, records events
+and metrics, and persists them through a repository boundary, implemented in FYP-I as versioned run
+files, with PostgreSQL planned for FYP-II. Directional arrows in the figure distinguish state flow from
+command ownership, making clear that perception can inform a snapshot without acquiring authority
+over simulation time. This separation also keeps dashboard latency outside the control path.
+
+Table 6.1 assigns each component the data it consumes and the state or evidence it is permitted to
+produce. This allocation prevents shared mutable state from becoming an undocumented integration
+mechanism. The dashboard owns only presentation state, controllers own only proposed actions and
+explanations, and the SUMO adapter owns the external process, subscriptions, clock, and applied ac-
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                                   69
+
+tuation. The orchestrator orders these modules but does not replace their domain logic. Routing and
+corridor responsibilities are listed separately because a shortest path does not imply authority to change
+a signal, and a corridor request must retain the route version that justified it. The traffic-state service can
+normalize observations from two source modes but may not silently combine missing video measures
+with exact simulator values. Finally, the experiment store receives validated records and artifacts rather
+than arbitrary objects from every module. These boundaries give each requirement a testable owner and
+permit an implementation to remain modular even when several components share one process.
+
+                                      Table 6.1: Component responsibility allocation
+
+Component              Consumes             Produces / owns
+React dashboard
+FastAPI boundary       Query responses, event snap- Presentation state; no control author-
+
+Experiment service     shots, user input    ity
+Control orchestrator
+SUMO/TraCI adapter     HTTP/stream commands, Validation, command/query bound-
+Traffic-state service
+Perception worker      identity-free local operator ary, error mapping
+Controller registry
+Routing service        session
+Corridor coordinator
+Experiment store       Valid configuration, met- Run lifecycle, immutable manifest,
+
+                       ric/event batches    comparison eligibility
+
+                       Run config and ordered state Decision schedule, module ordering,
+
+                       snapshot             requested actions
+
+                       Validated step and action com- Simulation process, clock, subscrip-
+
+                       mands                tions, applied actions
+
+                       SUMO observations or percep- Versioned source-specific snapshots
+
+                       tion messages        and freshness
+
+                       Video and model configuration Detections, tracks, aggregates, job
+
+                                            health
+
+                       State, legal phases, timing con- Requested normal-control action and
+
+                       straints             explanation
+
+                       Graph, mission, cost snapshot Route versions, no-route reason,
+
+                                            reroute decision
+
+                       Route version, ambulance Priority request/state, release and re-
+
+                       state, signal state  covery requests
+
+                       Validated records and artifacts Durable configuration, events, met-
+
+                                            rics, checksums
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  70

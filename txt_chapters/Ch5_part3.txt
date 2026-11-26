@@ -1,0 +1,128 @@
+5.5 Dynamic Graph Routing
+
+The routing graph represents legal vehicle movements rather than only geometric road adjacency. Nodes
+may be junctions or lane and edge transition points, while edges retain length, allowed vehicle class,
+free-flow time, current travel-time estimate, queue-discharge estimate, residual signal delay, closure
+state, and observation time. The exact representation must reproduce SUMO route validity, including
+turn restrictions and internal connections, so that an algorithm cannot return a visually plausible but
+undrivable path. Every cost field states its unit and source, and stale observations are rejected or replaced
+by a declared fallback estimate. Equation 5.4 expresses the primary cost in seconds. Link travel time,
+signal delay, and queue delay are separated only when their estimators do not overlap; if a measured link
+time already contains queuing, another queue penalty would double-count congestion. A hard closure
+receives infinite cost, while temporary slowdowns retain finite nonnegative estimates. The complete cost
+snapshot is versioned with any accepted route so that a later evaluator can reconstruct why it changed.
+
+The primary edge cost is expressed in seconds:
+
+ce(t) = Tˆerun(t) + Dˆ esignal(t) + Dˆ qeueue(t) + Me(t),  (5.4)
+
+where Tˆerun excludes queue and signal delay, and Me(t) = 0 for an open edge and infinity for a hard
+closure. When a measured total link travel time is available, it replaces the first three terms rather than
+being added to them. Every cost snapshot records the estimator type, source, and freshness.
+
+Dijkstra’s algorithm provides the reference minimum-cost path under nonnegative weights and requires
+no heuristic assumption [18]. It therefore supplies a clear correctness baseline for route validity and
+cost even when the selected network is small enough that search speed is not a practical limitation. A*
+is permitted when its heuristic h(n) is a lower bound formed from straight-line distance divided by the
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  58
+
+maximum allowed free-flow speed [1]. Under nonnegative signal and queue delays, this estimate re-
+mains no greater than the true remaining time and can guide the search without losing the optimality
+guarantee. The implementation checks the returned cost against Dijkstra in automated tests, and Dijk-
+stra remains the fallback if admissibility cannot be demonstrated. Neither algorithm creates dynamic
+routing by itself: the cost snapshot, refresh interval, closure handling, current-position mapping, and
+stability rule determine when a path changes. Algorithm 1 consequently wraps shortest-path search with
+validation, no-route handling, hysteresis, route versioning, and corridor cancellation.
+Data: Current ambulance edge s, destination g, current route R, cost snapshot Ct
+Result: Retained or revised valid remaining route
+Reject stale or negative costs; apply closures to Ct;
+R′ ← ShortestPath(s, g,Ct);
+if R′ does not exist then
+
+    return NO_ROUTE and cancel future corridor requests;
+end
+Compute remaining costs J(R) and J(R′) under the same snapshot;
+Validate route continuity from the current position;
+if current route is infeasible then
+
+    mark R′ for acceptance;
+else
+
+    mark R′ only if J(R) − J(R′) > δ for persistence window τ and cooldown has elapsed;
+end
+if R′ is not marked then
+
+    return the current route unchanged;
+end
+Atomically increment route version, cancel obsolete priority, and publish R′;
+
+                  Algorithm 1: Congestion-aware route selection and stable rerouting
+Algorithm 1 defines route selection and revision as one auditable transaction. It first rejects stale or
+negative costs, applies hard closures, and searches from the ambulance’s valid current position. Dijk-
+stra provides the reference optimum for nonnegative costs, while A* may be used only with the stated
+admissible free-flow lower bound. A missing path produces a recorded NO_ROUTE outcome and can-
+cellation of future corridor requests rather than a partial route. When both current and candidate paths
+are feasible, their remaining costs are evaluated under the same snapshot. The improvement threshold
+δ , persistence window τ, and cooldown are declared before held-out tests, preventing small fluctuations
+from causing oscillation. An infeasible current path bypasses the benefit threshold, but the replace-
+ment must still pass continuity and vehicle-class checks. Acceptance increments the route version and
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  59
+
+atomically cancels priority that is no longer justified. Computation time, revision cause, and rejected
+candidates are retained so route stability can be evaluated alongside ambulance travel time.
+
+In the implementation, graph nodes are SUMO edges and arcs follow SUMO lane connections, so every
+returned route can be driven. Because SUMO edge lengths exclude junction interiors, the A* heuristic is
+scaled by 0.896, the smallest ratio of edge length to node distance on the grid, which keeps it admissible.
+The rerouting values are δ = 10 s and τ = 10 s with a 30 s cooldown.
+
+5.6 Moving Green Corridor
+
+The moving corridor operates on a bounded number of intersections ahead of the simulated ambulance
+instead of setting an entire route green. Activation considers estimated arrival, standing queue clearance,
+and signal state rather than distance alone. Each request identifies the mission, immutable route version,
+approach movement, predicted arrival, expiry, and priority level. Before serving that movement, the
+coordinator completes the active phase’s minimum service and applies the configured yellow and all-red
+clearance to conflicting movements. Passage is confirmed from the ambulance’s simulated edge and lane
+transition, with a timeout detecting a missing or stalled vehicle. The intersection then enters recovery
+and either completes a bounded compensation plan or returns control at a safe phase boundary. A revised
+route cancels obsolete future requests before new look-ahead activation, preventing two route versions
+from competing for a signal. These choices follow the transition and recovery emphasis in emergency-
+preemption research [20] while keeping all timing values as simulation policies rather than certified field
+parameters.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  60
+
+Data: Priority request, ambulance state, signal state, safety configuration
+if request is stale, route version is obsolete, or movement is invalid then
+
+    reject and log reason;
+end
+Queue the request and estimate activation time;
+At activation, finish the corridor minimum green and apply legal clearance;
+Serve the ambulance movement within maximum priority duration;
+if passage is confirmed then
+
+    release and enter recovery;
+end
+else if mission is cancelled, route changes, or timeout occurs then
+
+    cancel safely and enter recovery/fallback;
+end
+Restore normal controller ownership at a valid phase boundary and record recovery time;
+
+                             Algorithm 2: Corridor lifecycle at one intersection
+Algorithm 2 makes the intersection lifecycle explicit. A stale, expired, invalid, or obsolete request is
+rejected before signal ownership can change. Valid requests wait for their activation condition, com-
+plete lawful clearance, and serve the ambulance movement for no longer than the configured maximum
+priority duration. Confirmed passage, mission cancellation, route revision, or timeout all lead through
+recovery rather than jumping to an arbitrary normal phase. The core scope permits one active ambulance,
+avoiding an untested arbitration policy for competing emergencies; multiple emergency vehicles remain
+future work. Ordinary-traffic harm is bounded through maximum priority duration and maximum-red
+monitoring, and the evaluation records safety-filter interventions and recovery time. Exact limits are
+reported as simulator settings, not public-road safety values, and the measured effect of the 5 s corridor
+minimum is reported in Chapter 9. This lifecycle allows emergency benefit and network disruption to be
+examined together while ensuring that cancellation is as carefully specified as successful passage. The
+prototype uses a look-ahead of two junctions and holds priority for at most 60 s. A corridor request may
+end the current green after 5 s instead of the normal 10 s minimum, while yellow and all-red clearance
+are never shortened; Chapter 7 explains why this change was kept.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  61

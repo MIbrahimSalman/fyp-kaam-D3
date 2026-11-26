@@ -1,0 +1,122 @@
+9.5 Emergency Routing Results
+
+In this experiment the corridor is off, and an obstruction that limits speed to 2 m/s starts at 1,000 s
+on road A1A2, which lies on the route that static routing chooses from free-flow costs. Static routing
+keeps that route; dynamic routing sees the reduced speed in its live costs and applies Algorithm 1.
+The measurement window was extended to 1,800 s because a first attempt with 900 s left four of five
+heavy-demand static trips unfinished; that attempt was discarded rather than reported without the failed
+trips.
+
+           Table 9.5: Ambulance travel time with static and dynamic routing around an obstruction
+
+Profile  Static (s)  Dynamic (s)  Difference (95 % CI)                     Seeds better
+Medium   309.0       145.4                                                      5/5
+                                  −163.6 s [−201.7,
+Heavy    587.8       302.0        −125.5], −53 %                                5/5
+                                  −285.8 s [−408.6,
+                                  −163.0], −49 %
+
+As Table 9.5 shows, dynamic routing roughly halved the ambulance’s travel time on both profiles and
+every seed. Ordinary traffic was not harmed: the network queue from dispatch until 300 s after arrival
+fell by 5.1 percent on medium demand (confidence interval crossing zero) and by 8.2 percent on heavy
+demand. All 20 ambulances arrived, and none crossed a red light. Figure 9.5 shows the per-seed results.
+
+         Figure 9.5: Static against dynamic routing around an obstruction
+CHAPTER 9. EXPERIMENTAL RESULTS AND DISCUSSION                                125
+
+9.6 Green Corridor Results
+
+The corridor experiment uses dynamic routing in both arms and no incident, so the difference comes
+from signal priority alone. Table 9.6 reports the corridor in its final form, with a 5 s corridor minimum
+green, against no corridor, with tuned fixed-time control for ordinary traffic.
+
+                 Table 9.6: Ambulance travel time and time stopped with the corridor off and on
+
+Profile  Off → on (s)   Difference (95 % CI), seeds better  Time stopped (s)
+
+Medium   155.8 → 102.6  −53.2 [−69.2, −37.2], −34 %, 5/5    45.2 → 4.4
+Heavy    313.6 → 127.8  −185.8 [−278.5, −93.1], −59 %, 5/5  173.2 → 12.4
+
+The corridor reduced the ambulance’s travel time by 34 percent on medium and 59 percent on heavy
+demand, on every seed, and cut its time standing still by more than 90 percent. The cost to ordinary
+traffic was small: the network queue from dispatch until 300 s after arrival rose by 2.5 percent on medium
+and 3.0 percent on heavy demand, with both confidence intervals crossing zero, and mean waiting time
+over the window rose by 2.4 and 1.9 percent. A junction took on average 8.6 s (medium) and 13.8 s
+(heavy) to return to its usual queue after the ambulance passed. There were no safety violations, priority
+timeouts, or red-light crossings by the ambulance. Figure 9.6 shows the per-seed values.
+
+    Figure 9.6: Corridor off against on: ambulance travel time, stops, network queue, and waiting time
+
+Table 9.7 summarizes the study of corridor variants described in Chapter 7, which led to the 5 s corridor
+minimum green. With the route-index defect fixed (variant v1), the shortened green (v2) reduced the
+CHAPTER 9. EXPERIMENTAL RESULTS AND DISCUSSION                               126
+
+ambulance’s travel time on heavy demand on four of five seeds with fixed-time control and on five of
+five with the DQN, while cross-street queueing changed by −3.7 to +2.4 percent. On medium demand
+the gain was negligible. Earlier activation gave gains of similar size that varied more between seeds, and
+raised cross-street queueing by 4 to 14 percent. The corridor also works with the DQN as background
+controller: with v2, the ambulance’s travel time fell from 136.4 s to 101.0 s on medium and from 302.4
+s to 124.2 s on heavy demand. Figure 9.7 shows why the ambulance stood still in each variant: with the
+v1 and v2 corridors, all remaining stops are vehicles queued in front of it or waiting inside a junction,
+and none is at a red light.
+Table 9.7: Ambulance travel time for corridor variants (mean of 5 seeds; seeds better than v1 in brackets)
+
+Background and demand Off (s)  v1 (s)           Earlier         v2 (s)
+                                                activation (s)
+Fixed-time, medium  155.8      103.2                            102.6 (1/5)
+Fixed-time, heavy   313.6      136.0            101.8 (2/5)     127.8 (4/5)
+DQN, medium         136.4      103.4            134.0 (3/5)     101.0 (3/5)
+DQN, heavy          302.4      130.6            101.2 (4/5)     124.2 (5/5)
+                                                122.6 (3/5)
+
+        Figure 9.7: Why the ambulance stood still, by corridor variant (mean seconds over five seeds)
+
+One caution applies to these corridor numbers. The 5 s corridor minimum was chosen by comparing
+variants on seeds 0 to 4, the same seeds on which the corridor result is reported, so the v2 figures in
+Tables 9.6 and 9.7 are development-stage estimates. The v1 corridor, which was designed before these
+runs, already reduced the ambulance’s travel time by 34 percent on medium and 57 percent on heavy
+CHAPTER 9. EXPERIMENTAL RESULTS AND DISCUSSION  127
+
+demand on the same seeds, so the main corridor effect does not depend on that choice. The v2 result
+will be confirmed on new seeds and on the Lahore network in FYP-II.
+
+9.7 Discussion
+
+The results support the main idea of the project within the tested conditions. A learned signal controller
+can reduce travel and waiting time compared with a well-tuned fixed plan, and live travel-time routing
+and a bounded corridor each give large reductions in ambulance delay, with small measured cost to ordi-
+nary traffic and no unsafe signal state in any run. The two emergency mechanisms are complementary:
+routing avoids a slow road, while the corridor removes waiting at signals on the chosen road. The per-
+ception chain counts vehicles with an overall count error (WAPE) of about 12 percent on public video,
+which is good enough to indicate demand but not yet good enough to replace simulator state in control
+experiments.
+
+The results also show trade-offs that a single demonstration would hide. The DQN’s gain comes partly
+from making minor phases wait longer, and only the safety filter’s maximum-red guard keeps that wait
+bounded; a fairness term in the reward or a lower guard would cost some of the travel-time gain. The
+adaptive controller lowers waiting and queues but not total travel time against a tuned plan, which shows
+that a responsive rule is not automatically better than a good fixed plan. In perception, fine-tuning helped
+cars and buses but not trucks, which are rare in the training data, and could not improve motorcycles
+without local labels.
+
+The main limits of the evidence are as follows. All simulation results come from one synthetic grid with
+one ambulance origin and destination, so they show behaviour on a controlled test track, not on Lahore
+roads. Five seeds were used instead of ten, and training and evaluation use the same four demand profile
+types on different seeds; there is no held-out demand pattern or second network yet. The DQN was
+trained once, so the variation between training runs is unknown. The corridor’s downstream-capacity
+check and the compensation plan during recovery are not implemented, and the 5 s corridor result is
+a development-stage estimate as explained above. The detector has not been tested on Lahore video,
+which contains vehicle types and camera angles absent from UA-DETRAC. These limits define the
+FYP-II work in Chapter 10.
+
+9.8 Conclusion
+
+The FYP-I experiments produced measured, repeatable evidence for every main component of Manzil.
+The fine-tuned detector reached 0.799 mAP50 on UA-DETRAC test data, and the counting chain had
+CHAPTER 9. EXPERIMENTAL RESULTS AND DISCUSSION  128
+
+a mean error of 2.60 vehicles per clip. On the synthetic grid the DQN reduced travel time by 9 to 11
+percent against tuned fixed-time control at a cost in fairness to minor phases, dynamic routing roughly
+halved the ambulance’s travel time around an obstruction, and the corridor reduced it by a further 34 to
+59 percent with little cost to ordinary traffic. Each result is bounded by the network, data, and seeds on
+which it was measured, and the next chapter turns those bounds into the FYP-II plan.

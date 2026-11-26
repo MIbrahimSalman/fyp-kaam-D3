@@ -1,0 +1,164 @@
+5.7 Integrated Control Loop
+
+Data: Validated run configuration and initialized services
+while run is active and before terminal simulation time do
+
+    Advance SUMO by exactly one configured step;
+    Read subscribed vehicle, lane, signal, and mission state;
+    Construct a timestamped traffic-state snapshot;
+    Update route costs and evaluate rerouting at its configured interval;
+    Update corridor requests and lifecycle states;
+    if corridor owns an intersection then
+
+         request its safe priority action;
+    else
+
+         request action from the selected normal controller;
+    end
+    Validate every requested action through the phase safety filter;
+    Apply accepted actions through the TraCI adapter only;
+    Record applied actions, events, and metric samples;
+    Publish a non-authoritative dashboard snapshot;
+end
+Finalize run status, artifacts, and checksums;
+
+                         Algorithm 3: Single-owner simulation and decision loop
+Algorithm 3 integrates normal control, route updates, and corridor ownership under one simulation-
+clock writer. Each iteration advances SUMO once, reads a complete observation set, creates a times-
+tamped snapshot, and then performs routing and corridor updates at their configured intervals. For each
+intersection, the corridor or the normal controller can request an action, but both pass through the same
+safety filter and only the TraCI adapter applies the result. Applied actions, metric samples, and mis-
+sion events are recorded before a dashboard view is published. This ordering prevents a slow client,
+background video job, or concurrent controller from advancing simulation time or acting on a partially
+updated state. A snapshot carries its effective step, production time, source, and validity interval so late
+data is deliberately mapped or rejected. At termination, the manifest and checksums are finalized even
+for stopped or failed runs. The loop therefore defines both concurrency ownership and the causal order
+needed to replay an experimental decision.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY                                62
+
+5.8 Experimental Protocol
+
+The experimental protocol fixes how runs are assigned, repeated, measured, and packaged so that a
+reported difference can be traced to the component being tested rather than to a change in demand, seed,
+or metric. This section first maps each objective to a controlled comparison, then states the repetition
+rules and metric definitions, and finally lists the artifacts retained with each run. Where the prototype
+used a reduced version of the protocol, the reduction is stated beside the rule.
+
+5.8.1 Comparison Matrix
+
+Table 5.1 maps each evaluation objective to a controlled comparison and the evidence required to as-
+sess it. Perception is compared with held-out annotations, normal control uses matched scenarios and
+seeds, routing holds the signal policy fixed, and corridor evaluation holds the route logic fixed. This
+staged design prevents a combined emergency result from being credited to the wrong component. The
+robustness row then stratifies demand, incidents, seeds, and any approved observation-noise conditions,
+retaining failures and no-route outcomes. Measures are selected to reveal tradeoffs: average delay is
+accompanied by queue extremes and fairness, ambulance time is paired with ordinary-traffic impact and
+recovery, and route benefit is paired with revision count and computation cost. The results obtained
+under this protocol, with the same objective and measure definitions, are reported in Chapter 9.
+
+                                       Table 5.1: Experiments and primary evidence
+
+Objective           Controlled comparison                 Primary measures
+Perception quality
+                    Detector/tracker output vs. held-     Precision/recall or mAP where
+Normal control      out sequence annotations              suitable; count MAE; identity metric
+Dynamic routing                                           only when required; queue-proxy
+Moving corridor     Fixed vs. rule-adaptive vs. selected  error; throughput
+Robustness          RL under matched scenarios/seeds      Mean travel and waiting time, queue
+                                                          mean/max, throughput, phase changes,
+                    Static/reference route vs. dynamic    max-red/fairness violations
+                    route, holding signal policy fixed    Ambulance travel time, delay, stops,
+                    Same routing without vs. with cor-    route revisions, computation time
+                    ridor                                 Ambulance time/stops; ordinary traffic
+                                                          delay/queues; recovery time; safety
+                    Demand, incident, seed, and op-       invariant violations
+                    tional observation-noise strata       Effect distributions and sensitivity;
+                                                          failed and no-route runs retained
+
+5.8.2 Scenario Assignment and Repetition
+
+The initial evaluation protocol uses a 900-second warm-up followed by a 3,600-second measurement in-
+terval for every matched simulation run. Each controller and scenario combination receives the same ten
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY      63
+
+demand seeds, origin-destination pairs, incident timing, and ambulance dispatch time. A pilot may jus-
+tify increasing the number of matched seeds when variability is high, but it cannot reduce the predeclared
+set or remove an unfavorable run. The 900-second warm-up and 3,600-second measurement interval
+were kept for every FYP-I controller comparison. Results report paired controller differences, standard
+deviation, and confidence intervals where their assumptions are satisfied. Reinforcement-learning train-
+ing and checkpoint selection use only training and tuning scenarios, while unseen demand combinations
+and a disjoint seed set remain reserved for final evaluation. Failures, timeouts, infeasible routes, and
+safety interventions stay in the run inventory and are reported separately when aggregation would ob-
+scure their meaning. The FYP-I experiments use a reduced form of this protocol with five evaluation
+seeds (0 to 4) instead of ten; the full ten-seed protocol follows on the Lahore network in FYP-II.
+
+5.8.3 Metric Definitions
+
+Metric definitions are shared across controllers and versioned with the run. For N completed vehicles
+with travel times Ti, mean travel time is T¯ = N−1 ∑i Ti. Queue length is sampled at fixed simulation inter-
+vals and reported as both time mean and maximum by approach. Throughput counts vehicles crossing
+declared network boundaries during the measurement interval, while the demand manifest and actual
+departures prevent a low completion count from being misread. Fairness includes maximum red time
+and the approach-level delay distribution because an aggregate mean can conceal starvation. Ambulance
+travel time is the primary emergency measure. Excess delay is the observed travel time minus the free-
+flow time of the same realized edge sequence, while route benefit is assessed separately by comparing
+matched routing policies. This distinction prevents a longer selected path from receiving an artificial
+advantage through an unrelated reference path. Ordinary-traffic impact covers non-emergency vehicles
+during the mission and the declared recovery interval. Route computation time is measured separately
+from simulated travel time, and revision count identifies unstable routing. Because a poor policy can
+strand vehicles so that only short trips finish, a travel-time mean that also includes unfinished vehicles is
+reported. For perception counts yk and estimates yˆk, mean absolute error is
+
+                          =  1K          − yˆk|.
+                          ∑ MAE     |yk           (5.5)
+                             K
+                                k=1
+
+5.8.4 Reproducibility Package
+
+Each run retains the source revision, dependency manifest, SUMO version, network and route check-
+sums, controller and model version, full configuration, seed, logs, metric schema, and terminal reason.
+Applied decisions are stored separately from controller requests, and route revisions identify the cost
+snapshot and trigger that produced them. Large external video and pretrained weights may be refer-
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  64
+
+enced by a license-aware URI and checksum when redistribution is not permitted. The configuration
+stored in a manifest is sufficient to repeat a run, and every manual NetEdit change must be committed
+as a versioned network artifact rather than left in an operator’s local state. Derived plots and summary
+tables retain their source run identifiers and analysis-script revision. Failed and cancelled runs keep their
+partial logs and explicit terminal state. This package does not guarantee identical hardware timing, but it
+makes scenario semantics, causal events, and analytical transformations inspectable enough for another
+team member to reproduce the experiment or explain a difference.
+
+5.9 Threats to Validity
+
+Construct validity is threatened when a queue proxy, waiting-time implementation, or reward compo-
+nent does not represent the concept named in the report. Definitions and units are therefore versioned,
+and image-space proxies are not relabeled as physical quantities without calibration. Internal validity
+can be weakened by unmatched demand, different warm-up, hidden seed changes, or controller-specific
+failures; paired manifests, one measurement implementation, and retention of failed runs reduce these
+risks. External validity remains limited by synthetic demand, map inaccuracies, SUMO car-following
+assumptions, a small selected network, and domain shift between public video and Lahore traffic. Con-
+clusions are bounded to the tested network, demand families, software versions, and video sources, with
+no claim about clinical response time or public-road safety. Conclusion validity can be weakened by too
+few repetitions, test-set tuning, selective failure removal, or reporting only means. Pilot variance, held-
+out scenarios, paired comparisons, variability, and sensitivity analysis address those concerns. Paired
+confidence intervals are reported together with effect sizes, and significance alone is not treated as prac-
+tical value.
+
+5.10 Conclusion
+
+The methodology specifies a staged progression from validated measurements and baselines to inte-
+grated emergency control. Network provenance and demand manifests support repeatable scenarios;
+source-separated video evaluation prevents perception estimates from being confused with simulator
+truth; and common safety constraints permit a fair controller comparison. Routing uses time-consistent
+nonnegative costs, validity checks, and hysteresis, while the corridor lifecycle makes request, clearance,
+active priority, passage, cancellation, and recovery observable. The comparison matrix separates per-
+ception, normal control, routing, corridor effect, and robustness so the cause of a result can be explained.
+Held-out scenarios, repeated seeds, explicit metrics, retained failures, and reproducibility artifacts pro-
+tect the final evaluation from undocumented tuning. Most importantly, the procedure allows a learned
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  65
+
+controller, tracker, rerouting policy, or corridor configuration to produce a negative or mixed finding
+without prompting selective changes to the test protocol. The next chapter maps these methodological
+responsibilities to components, interfaces, state ownership, and failure handling.

@@ -1,0 +1,108 @@
+5.4 Normal Traffic Controllers
+
+Normal control decides which legal phase each signalized junction serves when no ambulance is present.
+Manzil compares three controller families of increasing complexity under identical phases, timing con-
+straints, and demand: a fixed-time plan, a transparent pressure-based rule, and a learned policy. All three
+only request a phase; a shared safety filter applies minimum green, yellow, all-red, and a maximum-red
+guard before any change reaches SUMO. The subsections below define each controller.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY                                                55
+
+5.4.1 Fixed-Time Controller
+
+The fixed controller uses a declared cycle and phase sequence appropriate to each selected junction.
+Green, yellow, all-red, cycle, and offset values are versioned with the scenario, and the same movement
+definitions and clearance rules constrain every competing controller. The baseline is not intentionally
+starved or assigned unrealistic timing to make adaptation appear superior. Green splits are selected from
+the declared demand and checked against approximate approach service so that at least the light scenario
+is feasible and heavier scenarios create interpretable congestion rather than immediate gridlock. Its
+deterministic schedule makes it useful for validating demand generation, metric collection, ambulance
+route ablations, and replay before learning is introduced. If a run violates phase invariants or produces
+implausible counts under fixed control, adaptive and reinforcement-learning comparisons are postponed
+until the cause is resolved. The baseline therefore serves as both a comparator and a diagnostic reference,
+not as a weak opponent constructed for a favorable result. In the implementation the fixed plans were
+tuned separately for each demand profile on development seeds only, and a second fixed-time arm uses
+one 35/35 s plan for all profiles to represent a controller that does not know the demand in advance.
+
+5.4.2 Rule-Based Adaptive Controller
+
+The initial transparent controller evaluates only legal candidate phases. A pressure-inspired score for
+
+phase p is
+
+            Sp(t) = ∑ (ql(t) − αqm(t)) + β wl(t),                                           (5.2)
+
+                         (l ,m)∈ p
+
+where ql and qm are upstream and downstream queues for a served movement, wl is the maximum
+accumulated wait among its approaches, and α, β are documented configuration values. This follows
+
+the motivation of max-pressure control [10] while retaining a direct anti-starvation term.
+
+Equation 5.2 assigns a transparent score to each legal candidate phase using upstream demand, down-
+stream congestion, and the longest accumulated approach wait. The downstream term discourages serv-
+ing a movement whose receiving link lacks space, while the wait term provides a direct safeguard against
+repeatedly postponing a low-volume approach. Coefficients are configuration values established on de-
+velopment scenarios and retained with the run manifest. At each decision instant, the current green is
+held until minimum green has elapsed. It may then be extended when it remains the preferred phase and
+maximum green has not been reached. A phase whose maximum-red limit is approached receives ex-
+plicit promotion, and every switch inserts the same yellow and all-red sequence used by other controllers.
+The controller returns a requested phase and its contributing values; it does not actuate SUMO directly.
+This explanation record permits a reviewer to distinguish an algorithmic request from a safety-filter
+transformation and to diagnose whether observed performance came from pressure, fairness promotion,
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  56
+
+or repeated intervention. In the implementation each incoming lane is counted once per phase, and one
+parameter set chosen on development seeds is used for every demand profile.
+
+5.4.3 Reinforcement-Learning Formulation
+
+The reinforcement-learning design is a parameter-sharing, discrete-action Deep Q-Network for the se-
+lected small network, introduced only after the fixed and rule-based baselines are stable. Each controlled
+intersection applies the same policy to a fixed-length local observation and requests either one legal
+phase or a bounded extension. Parameter sharing limits the number of independently trained models
+and permits consistent logging, while intersection identifiers and movement masks prevent an invalid
+phase from entering the available action set. The safety layer retains authority over minimum green,
+yellow and all-red clearance, and maximum-red constraints. Model architecture, observation normal-
+ization, replay settings, exploration schedule, optimizer, training budget, and checkpoint-selection rule
+were fixed before held-out evaluation. This choice is an initial experimental design rather than a claim
+that Deep Q-learning is the best controller. A policy that is unstable, violates fairness limits, or gives no
+consistent held-out benefit is reported as such rather than tuned on the evaluation seeds.
+
+The state for each decision interval describes incoming and outgoing queue conditions, approach waiting
+
+time, the current phase, elapsed phase time, and valid-action masks. Emergency status is excluded from
+
+this normal-control policy because the corridor is evaluated as a separate supervisory intervention. All
+
+queue and waiting inputs use common clipping and normalization ranges fixed during tuning. An action
+
+requests a legal phase or a bounded extension. The safety layer remains authoritative. A candidate
+
+reward is
+
+           rt = −λpPt − λwWt − λsXt − λcCt ,  (5.3)
+
+where Pt = ∑m|qimn(t) − qomut(t)| is the nonnegative magnitude of movement pressure, Wt is normalized
+waiting, Xt is a starvation violation, and Ct is an unnecessary-switch penalty. Coefficients and normal-
+ization are fixed on training and tuning scenarios. Emergency performance is evaluated separately so
+that the normal-controller comparison is not confounded by rare mission rewards.
+
+Equation 5.3 combines network pressure, normalized waiting, starvation violations, and unnecessary
+switching, with every component logged separately so that one favorable aggregate cannot conceal a
+harmful term. Coefficients and normalization are chosen on training and tuning scenarios, then frozen.
+Training records episode seed, demand profile, exploration schedule, optimizer settings, network check-
+sum, reward components, software version, and candidate checkpoints. Checkpoint selection follows a
+declared tuning criterion rather than the best result on the final scenarios. Evaluation uses deterministic
+policy settings where applicable and the same safety filter, demand manifests, warm-up, and measure-
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY               57
+
+ments as the baselines. Training return is a learning diagnostic, not an evaluation result, because it
+depends on reward scaling and does not directly establish travel time, fairness, or safety. Emergency
+priority remains a separate supervisory experiment so that rare mission rewards do not confound the first
+normal-controller comparison. This separation also enables an honest result when a normal controller
+improves average delay but produces unacceptable maximum-red behavior.
+
+The implemented agent is a parameter-sharing Double DQN with a 26-value observation per junction,
+two hidden layers of 128 units, and a decision every 5 s. Its reward uses the mean number of halting ve-
+hicles on the junction’s approaches in place of the pressure magnitude Pt in Equation 5.3, while pressure
+remains part of the observation.

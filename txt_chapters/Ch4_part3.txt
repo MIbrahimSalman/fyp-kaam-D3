@@ -1,0 +1,380 @@
+4.5 Assumptions
+
+SUMO and TraCI are required for controlled traffic experiments [17, 22]. A selected network must
+contain legal lane connections and signal plans after import and manual cleanup, and representative
+routes must be validated before it is used for comparison. Video sources require sufficient visibility,
+a documented license or team authorization, and annotations appropriate to the selected measure. The
+simulation assumes one clock owner, nonnegative route costs, and emergency endpoints on ambulance-
+accessible edges. It also assumes that configured phase transitions reflect the validated simulation net-
+work; they are not certified timings for physical signal hardware. The dashboard is an operator and
+evaluator tool rather than an autonomous public dispatch system, and a displayed route does not consti-
+tute operational navigation advice. When an assumption cannot be met, the affected workflow must stop
+or disclose a bounded fallback. It must not silently substitute a different network, data source, time unit,
+or observation mode because that would make later comparisons irreproducible.
+
+React and FastAPI are fixed by the approved proposal for the interface and application service bound-
+ary [23, 24]. Python is used for perception, reinforcement learning, and the TraCI interface. In FYP-I
+the dashboard receives state over a WebSocket and draws the map as plain SVG without a map library.
+PostgreSQL and Docker were not needed for the prototype: run records are stored as versioned files, and
+a database is planned for FYP-II behind the same repository boundary. These assumptions are deliber-
+ately narrower than a production deployment specification. Manzil is evaluated as a controlled prototype
+on prepared networks, not as an interface to public signal controllers or ambulance dispatch infrastruc-
+ture. A selected video source must have suitable permission and sufficient visibility for the intended
+annotation task, while the simulation network must be checked for lane connectivity, valid traffic-light
+programs, and ambulance-accessible routes. If any assumption fails, the run must be rejected or marked
+with an explicit limitation instead of substituting an undocumented configuration. This treatment keeps
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS        33
+
+dependencies traceable and prevents a convenient library choice from becoming an unsupported archi-
+tectural claim.
+
+4.6 Use Cases
+
+The primary actor is a research operator who configures experiments, observes their progress, initiates
+a simulated emergency mission, and exports evidence. SUMO, recorded video, and the experiment
+store support those actions but do not independently choose research parameters. Evaluators consume
+dashboard views and exported records without receiving control privileges. Figure 4.1 presents this
+boundary and connects the operator to eight goal-oriented interactions. Configuration and simulation
+appear separately because validation must finish before the single clock owner starts a run. Dispatch,
+corridor monitoring, and rerouting are also distinct so that a route revision cannot be treated as an
+invisible side effect. Tables 4.3–4.10 then specify a summary, conditions, special requirements, the
+basic actor–system exchange, and alternative behavior for each interaction. Collectively, they test more
+than the successful interface path: invalid endpoints, stale streams, no-route cases, controller failure,
+incompatible comparisons, and termination reasons must all produce observable outcomes. The use
+cases therefore define acceptance evidence as well as operator interaction.
+
+                                                              Manzil research prototype
+                                                                            Configure scenario
+
+                         Run/control simulation
+                          Process traffic video
+                           Inspect traffic state
+
+               Research   Dispatch ambulance
+               operator  Monitor route/corridor
+                          Handle route change
+
+                         Compare/export runs
+
+               Figure 4.1: Operator use-case diagram
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                34
+
+                              Table 4.3: UC-01: Configure a Scenario
+
+Name                                   UC-01: Configure a Scenario
+
+Actors                                 Research operator
+
+Summary                                The operator prepares a validated and versioned ex-
+
+                                       periment configuration.
+
+Pre-Conditions                         Network, demand, controller, and source descriptors
+
+                                       are available.
+
+Post-Conditions                        A valid configuration is stored; no run has started.
+
+Special Requirements                   Identifiers, durations, seeds, and controller compat-
+
+                                       ibility must be validated.
+
+                                       Basic Flow
+
+                Actor Action                             System Response
+
+1       Opens experiment configuration. 2          Displays available networks, demand
+
+                                                   profiles, controllers, and source modes.
+
+3       Selects settings and submits.  4           Validates the fields and stores the versioned
+
+                                                   configuration.
+
+                                       Alternative Flow
+
+3       Submits missing or incompatible 4-A Identifies each invalid field and does not
+
+        values.                                    create a runnable configuration.
+
+                      Table 4.4: UC-02: Run and Control a Simulation
+
+Name                                   UC-02: Run and Control a Simulation
+
+Actors                                 Research operator
+
+Summary                                The operator starts and monitors a configured
+
+                                       SUMO experiment.
+
+Pre-Conditions                         UC-01 is valid and the SUMO adapter is available.
+
+Post-Conditions                        The run is completed, stopped, or failed with an ex-
+
+                                       plicit terminal reason.
+
+Special Requirements                   Only the orchestrator may advance simulation time;
+
+                                       illegal actions require fallback.
+
+                                       Basic Flow
+
+                Actor Action                             System Response
+
+1       Selects Start for a valid configura- 2     Creates the run, launches SUMO, and
+
+        tion.                                      completes warm-up.
+
+3       Monitors, pauses, resumes, or stops 4      Steps the simulation, applies lawful actions,
+
+        the run.                                   records evidence, and terminates safely.
+
+                                       Alternative Flow
+
+1       Starts an unavailable or invalid 2-A Rejects the start or records launch/TraCI
+
+        setup.                                     failure while retaining diagnostic logs.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                              35
+
+                              Table 4.5: UC-03: Process Traffic Video
+
+Name                          UC-03: Process Traffic Video
+
+Actors                        Research operator
+
+Summary                       The operator creates a video-processing job that
+
+                              produces traceable traffic observations.
+
+Pre-Conditions                A licensed video source and model configuration are
+
+                              available.
+
+Post-Conditions               Stored observations identify the source, model, in-
+
+                              terval, units, confidence, and job status.
+
+Special Requirements          Uncalibrated video may report proxies but not phys-
+
+                              ical queue length or speed.
+
+                              Basic Flow
+
+                Actor Action                    System Response
+
+1       Selects a video source and model 2    Validates provenance, format, model, and
+
+        configuration.                        optional calibration.
+
+3       Starts processing.    4               Detects, tracks, assigns regions, aggregates
+
+                                              observations, and records job progress.
+
+                              Alternative Flow
+
+3       Submits unreadable media or pro- 4-A Reports the failure and preserves completed
+
+        cessing fails.                        evidence without inventing physical
+
+                                              measures.
+
+                              Table 4.6: UC-04: Inspect Traffic State
+
+Name                          UC-04: Inspect Traffic State
+
+Actors                        Research operator
+
+Summary                       The operator reviews current or recorded traffic state
+
+                              without changing control decisions.
+
+Pre-Conditions                A simulation run or perception job has emitted ob-
+
+                              servations.
+
+Post-Conditions               The displayed state remains traceable to its source
+
+                              and no decision is changed.
+
+Special Requirements          Source mode, units, freshness, confidence, and in-
+
+                              valid values must remain visible.
+
+                              Basic Flow
+
+                Actor Action                    System Response
+
+1       Opens the overview or an intersec- 2  Displays source, freshness, counts, queue
+
+        tion detail.                          values, phases, controller, and warnings.
+
+3       Selects another time or intersec- 4   Retrieves the corresponding traceable
+
+        tion.                                 snapshot.
+
+                              Alternative Flow
+
+1       Opens a disconnected or stale 2-A Marks the state stale or unavailable and
+
+        stream.                               does not present the last value as current.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                         36
+
+                              Table 4.7: UC-05: Dispatch an Ambulance
+
+Name                                          UC-05: Dispatch an Ambulance
+
+Actors                                        Research operator
+
+Summary                                       The operator creates one simulated emergency mis-
+
+                                              sion between valid network positions.
+
+Pre-Conditions                                An emergency-enabled scenario is running and no
+
+                                              core mission is active.
+
+Post-Conditions                               A mission is active with a valid route, or the request
+
+                                              is rejected cleanly.
+
+Special Requirements                          Origin and destination must be legal vehicle edges
+
+                                              and corridor activation must be atomic.
+
+                                              Basic Flow
+
+                Actor Action                              System Response
+
+1       Selects origin and destination and 2              Validates the endpoints and computes a
+
+        requests dispatch.                                time-based legal route.
+
+3       Confirms the valid mission.           4           Spawns the ambulance, publishes the route
+
+                                                          version, and requests bounded look-ahead.
+
+                                       Alternative Flow
+
+1       Submits invalid endpoints, no- 2-A Explains the rejection and activates no
+
+        route input, or a duplicate mission.              partial corridor.
+
+                            Table 4.8: UC-06: Monitor Route and Corridor
+
+Name                                          UC-06: Monitor Route and Corridor
+
+Actors                                        Research operator
+
+Summary                                       The operator follows ambulance movement, route
+
+                                              versions, and intersection priority states.
+
+Pre-Conditions                                An emergency mission is active.
+
+Post-Conditions                               Mission progress and every priority transition are
+
+                                              recorded.
+
+Special Requirements                          Priority must obey legal transition, expiry, passage,
+
+                                              timeout, and recovery rules.
+
+                                              Basic Flow
+
+                Actor Action                              System Response
+
+1       Opens the active emergency mis- 2                 Displays position, remaining route, current
+
+        sion.                                             route version, and corridor states.
+
+3       Continues monitoring as the ambu- 4               Requests safe priority, detects passage,
+
+        lance advances.                                   releases ownership, and records recovery.
+
+                                       Alternative Flow
+
+3       A position becomes stale, a request 4-A Cancels affected requests, applies fallback
+
+        is unsafe, or timeout occurs.                     or recovery, and displays an alert.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                               37
+
+                       Table 4.9: UC-07: Handle a Blockage or Route Change
+
+Name                                UC-07: Handle a Blockage or Route Change
+
+Actors                              Research operator
+
+Summary                             The system evaluates rerouting from the ambu-
+
+                                    lance’s valid current position.
+
+Pre-Conditions                      An active mission exists and a closure or sustained
+
+                                    cost change is detected.
+
+Post-Conditions                     Exactly one route version remains current and every
+
+                                    decision retains its cause and cost snapshot.
+
+Special Requirements                Feasibility, improvement threshold, persistence,
+
+                                    cooldown, and obsolete-request cancellation apply.
+
+                                    Basic Flow
+
+                Actor Action                          System Response
+
+1       Reviews the blockage or reroute 2       Computes and validates a candidate route
+
+        notification.                           under one cost snapshot.
+
+3       Continues the mission after the de- 4   Publishes an accepted version atomically or
+
+        cision.                                 retains the current route with a reason.
+
+                                    Alternative Flow
+
+3       No feasible route exists.   4-A Cancels future priority, marks the mission
+
+                                                blocked, and records the graph snapshot.
+
+                       Table 4.10: UC-08: Compare and Export Runs
+
+Name                                UC-08: Compare and Export Runs
+Actors
+Summary                             Research operator
+
+Pre-Conditions                      The operator compares eligible experiments and ex-
+Post-Conditions
+                                    ports their evidence and manifests.
+Special Requirements
+                                    At least two completed or failed run records exist.
+
+                                    The comparison and export identify source run IDs,
+
+                                    metric definitions, and schema version.
+
+                                    Network, demand, warm-up, duration, seed cover-
+
+                                    age, and metric versions must be disclosed.
+
+                                    Basic Flow
+
+                Actor Action                          System Response
+
+1       Selects runs and a metric.  2           Checks comparability and displays
+
+                                                distributions, variability, failures, and
+
+                                                configuration differences.
+
+3       Requests an export.         4           Packages selected records with identifiers,
+
+                                                units, definitions, and manifests.
+
+                                    Alternative Flow
+
+1       Selects incompatible runs.  2-A Warns or refuses direct comparison and
+
+                                                never silently omits failed runs.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  38

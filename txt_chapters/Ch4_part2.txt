@@ -1,0 +1,166 @@
+4.3 Quality Attributes
+
+Manzil’s quality model separates broad software qualities from the individually testable non-functional
+requirements. The qualities below explain why the requirements matter to this research prototype, while
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  28
+
+Section 4.4 assigns stable identifiers to the corresponding acceptance conditions. The distinction is
+important because a feature may execute without producing credible research evidence. For example, a
+controller can return an action and still violate reliability if the applied phase, effective step, or fallback
+reason is lost. Similarly, a dashboard can appear responsive while showing stale observations. Manzil
+therefore treats usability, reliability, security, performance, maintainability, extensibility, and traceability
+as constraints on the complete workflow rather than as cosmetic objectives. Each quality is interpreted
+within a simulation and recorded-video setting; none is presented as evidence of certified public-road
+operation.
+
+4.3.1 Usability
+
+The interface is designed for a trained research operator who must configure a scenario, observe a
+run, initiate a simulated ambulance mission, and inspect retained evidence without switching among
+unrelated tools. Inputs use project terminology and display units, validation state, data source, and
+freshness beside the value that they qualify. Navigation preserves the selected run and mission context
+so that moving between the network overview, perception detail, emergency route, configuration, and
+analytics screens does not silently change the experiment. Status is not communicated by color alone:
+labels and symbols distinguish normal, stale, fallback, invalid, and disconnected states. Destructive or
+irreversible actions, such as stopping a run or replacing an active route version, require clear confirmation
+or are mediated by backend validation. These provisions do not claim that a formal usability study has
+been completed. They define observable interface behavior that can later be checked through task-based
+review using the proposed screens in Section 4.8.
+
+4.3.2 Reliability and Integrity
+
+Reliability concerns the preservation of valid state and evidence when a component is slow, unavailable,
+or produces an invalid request. One orchestrator and one SUMO adapter own simulation stepping and
+signal actuation, which prevents two services from advancing the same clock or issuing competing phase
+changes. Requested actions are stored separately from applied actions so the safety filter’s intervention
+remains visible. A run configuration becomes immutable after start, route revisions are monotonically
+versioned, and corridor requests retain the route version that authorized them. Missing observations
+remain missing rather than being converted to zero, while stale observations are rejected or handled
+through a declared fallback. Terminal run states include completed, stopped, failed, and incomplete,
+each with a reason. Integrity therefore means that an unsuccessful experiment remains interpretable;
+it does not mean that every component is continuously available. Recovery and fallback behavior are
+specified explicitly in the use cases, risk register, and Chapter 6.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  29
+
+4.3.3 Security and Confidentiality
+
+Manzil is not a public dispatch or traffic-control service, but its development data still require controlled
+handling. Recorded video must be licensed, public under suitable terms, or specifically authorized
+for team use. Raw video and model artifacts remain external files referenced through provenance and
+checksums rather than being copied indiscriminately into experiment exports. Machine credentials,
+private paths, and access tokens are excluded from run manifests. The proposed dashboard is an operator
+interface for a controlled laboratory environment and does not introduce public user registration. If
+authentication is later required for deployment, it must be added as a separate verified requirement rather
+than assumed in this deliverable. Exported research records should contain scenario and measurement
+identifiers but no unnecessary personal data. These boundaries provide proportionate confidentiality
+for the stated prototype while avoiding unsupported claims about production authorization, encryption
+infrastructure, or compliance with operational emergency-service policies.
+
+4.3.4 Performance
+
+Performance is defined relative to the chosen simulation step, control interval, video workload, and
+demonstration hardware. The control path must complete its decision before the configured deadline for
+the step in which the action becomes effective; otherwise the interval is marked late and a declared base-
+line or safe continuation is used. Video inference runs in a bounded worker so a slow model cannot block
+simulation stepping or an API request indefinitely. Dashboard delivery is a lossy view of authoritative
+state, allowing an inactive client to skip intermediate frames without delaying control. Route computa-
+tion and comparison queries are profiled separately from simulation actuation because their acceptable
+latency depends on network size and update frequency. FYP-I profiling on the synthetic grid provides
+first measured values. One SUMO step with medium demand takes about 1 ms through libsumo, a route
+computation takes less than 0.1 ms, and a batch of 60 full-length runs completes in about 100 s on four
+CPU cores. The fine-tuned detector needs about 6.8 ms per image on a Tesla T4, and detection with
+tracking runs at 40 to 66 frames per second on the same GPU. These values describe the grid and the
+stated hardware only; thresholds for the Lahore network will be set after it is profiled in FYP-II, and
+every measurement identifies its workload, hardware, and software versions.
+
+4.3.5 Maintainability and Reusability
+
+Maintainability is supported through typed, versioned contracts and replaceable implementations behind
+stable responsibilities. Fixed-time, rule-adaptive, and learned controllers share one request interface and
+therefore receive the same snapshot fields and legal phase constraints. The repository boundary allows
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  30
+
+early file-backed persistence to be replaced by PostgreSQL without changing the meaning of a run,
+while the perception boundary permits a detector or tracker to change only when its model version and
+output semantics are declared. Configuration is stored in validated files rather than scattered constants,
+and public interfaces are documented with units, identifiers, timing semantics, and failure behavior.
+Tests target cost functions, route continuity, freshness rules, schema validation, and corridor invariants
+independently of the final dashboard. Reuse is limited to components whose assumptions remain valid;
+a model, road network, or phase plan is not treated as reusable merely because its file can be loaded.
+These rules reduce coupling while preserving the provenance required for research comparison.
+
+4.3.6 Extensibility and Traceability
+
+The design leaves controlled extension points for additional controllers, perception models, route-cost
+providers, scenarios, and visualizations. An extension must implement the existing contract or introduce
+an explicit schema version, and it must not acquire direct TraCI access or bypass the common safety
+filter. New measurements include a definition, unit, interval, and source run identifiers so previous
+and revised metrics cannot be combined silently. Traceability connects functional requirements to use
+cases, screens, architecture components, events, and planned tests through stable identifiers and cross-
+references, and Table 7.20 links each requirement to its test cases. Every exported comparison retains
+the run manifest, seed coverage, controller version, metric version, and failed-run status. This approach
+allows the prototype to grow without changing the interpretation of earlier evidence. Extensibility is
+therefore not an unrestricted plugin claim; it is the ability to replace or add a component while declaring
+the effect on control ownership, data contracts, and reproducibility.
+
+4.4 Non-Functional Requirements
+
+Functional behavior alone would permit a demonstration that appears successful but cannot be repro-
+duced or audited. Table 4.2 therefore states the quality attributes that constrain every feature group.
+Reproducibility and data integrity require a run to preserve the exact scenario, version, seed, and metric
+definition used to generate a result. Safety requirements apply within simulation and prevent controllers
+from bypassing clearance or ownership rules. Freshness and isolation ensure that a stale perception
+result or slow dashboard cannot silently influence a later simulation step. Responsiveness is expressed
+as a design target, and the first measured values on the synthetic grid are given under the performance
+attribute above. Privacy is limited to the handling of licensed or team-authorized video and does not
+imply a production governance framework. These non-functional requirements also define how nega-
+tive outcomes are handled: an unavailable controller, disconnected simulator, or incomplete record must
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                           31
+
+remain visible rather than being removed from the evaluation set without explanation.
+                              Table 4.2: Non-functional requirements and design targets
+
+ID      Attribute             Requirement or target
+NFR-01  Reproducibility
+NFR-02  Safety in simulation  A run shall store network and demand identifiers, seed,
+NFR-03  Auditability          controller configuration, software/model versions, warm-
+NFR-04  Freshness             up, duration, and metric schema.
+NFR-05  Responsiveness        Incompatible green movements shall never be applied; ev-
+                              ery ordinary and emergency transition shall pass the safety
+NFR-06  Isolation             filter and use the configured clearance sequence.
+NFR-07  Usability             Applied decisions shall be distinguishable from requests,
+NFR-08  Portability           and their simulation timestamps and reasons shall be re-
+NFR-09  Maintainability       tained.
+NFR-10  Data integrity        Each observation shall carry produced-at and effective sim-
+                              ulation time. Stale thresholds are configuration values and
+                              stale data shall not silently drive control.
+                              The control action for step t should be available before its
+                              configured decision deadline. The exact deadline is a de-
+                              sign target to be set after baseline profiling, not an achieved
+                              value.
+                              Background video inference and dashboard clients shall not
+                              advance SUMO or directly actuate signals.
+                              A trained operator should be able to configure the core
+                              demonstration from one experiment screen, with units and
+                              validation messages visible.
+                              Services should be runnable from versioned environments;
+                              containerization is proposed after local baseline integration
+                              is stable.
+                              Component interfaces shall use typed, versioned data con-
+                              tracts and controller implementations shall share one inter-
+                              face.
+                              A completed run configuration shall be immutable; derived
+                              summaries shall retain their metric version and source run
+                              identifiers.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                 32
+
+        Table 4.2: Non-functional requirements and design targets (continued)
+
+ID      Attribute     Requirement or target
+NFR-11  Privacy
+                      Video shall be limited to licensed or team-authorized ma-
+NFR-12  Availability  terial, stored only as needed, and excluded from exports
+                      unless explicitly requested.
+                      The prototype shall fail visibly and recover to a safe stopped
+                      or baseline-controlled simulation state; no public-service
+                      availability is claimed.

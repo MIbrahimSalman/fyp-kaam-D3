@@ -1,0 +1,137 @@
+3.2.3 Reinforcement Learning and Simulation
+
+This theme reviews reinforcement learning for traffic-signal control and the simulators used to train and
+evaluate it. The literature shows that learned controllers depend heavily on state, reward, action design,
+and training scenarios, and that multi-intersection learning adds coordination and non-stationarity prob-
+lems. These findings led Manzil to train a single parameter-sharing Double DQN on a small grid in
+SUMO, with the safety filter outside the learned policy and held-out seeds for evaluation. The subsec-
+tions below cover value-based learning, pressure-informed and multi-agent extensions, and the choice
+of simulator.
+
+3.2.3.1 Deep RL for Signal Control
+
+Liang et al. used deep reinforcement learning to adjust traffic-light cycle behavior from observed traffic
+state [11]. The study demonstrates how an action definition, decision interval, state representation, and
+reward can be joined into a trainable signal controller. It also illustrates a limitation common to traffic
+RL: performance obtained for a particular intersection, simulator configuration, demand pattern, and
+training budget cannot be assumed to transfer to a different network. Manzil therefore does not treat a
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  16
+
+reported improvement as an expected project target and did not select deep Q-learning merely because it
+is familiar. A value-based method is feasible only after the discrete action space is bounded, legal phase
+transitions are enforced outside the learned policy, and fixed and rule-based baselines behave correctly.
+State normalization and reward components must be declared before evaluation, while training and
+tuning scenarios must remain separate from held-out tests. The policy is assessed using traffic measures
+and safety interventions, not training return alone. If a simpler controller performs as well under the
+selected scenarios, that result is reported rather than interpreted as a failure to produce a sufficiently
+complex model.
+
+3.2.3.2 Pressure-Based and Multi-Agent Methods
+
+PressLight connects reinforcement-learning state and reward design to the transportation concept of max
+pressure [12]. The paper argues that a theoretically grounded pressure signal can reduce reliance on ar-
+bitrary handcrafted objectives and evaluates the method against conventional and learning baselines in
+arterial networks. This is relevant to Manzil because a reward based only on total waiting time may con-
+ceal spillback, unbalanced approaches, or repeated postponement of a minor movement. Pressure can
+provide a principal network-efficiency signal, while explicit penalties or constraints can address starva-
+tion and unnecessary switching. The study does not remove the need for careful evaluation. Topology,
+movement mapping, flows, phase definitions, observation range, and training budget all influence the
+learned result. Manzil must therefore record the exact state features, normalization, action timing, re-
+ward components, and safety interventions used by the selected policy. Emergency priority remains a
+supervisory state machine rather than a rare reward event folded into normal training. That separation
+permits the normal-controller comparison to be interpreted independently and lets the additional effect
+of the corridor be measured through a controlled ablation.
+
+FRAP represents competition among signal phases and exploits structural relationships so that equiva-
+lent movements need not be learned as unrelated cases [13]. This is useful where an intersection contains
+several competing phases, but it requires an accurate phase graph and a more specialized representation.
+CoLight addresses cooperation across intersections through graph attention, allowing neighboring con-
+ditions to influence an agent’s decision [14]. Chu et al. similarly study decentralized multi-agent deep
+reinforcement learning at larger scale and emphasize the importance of communication and partial ob-
+servability [15]. Together, these studies show why the phrase “multi-intersection RL” is not a complete
+method. A project must state whether one centralized policy chooses all actions, independent agents op-
+erate without communication, or cooperating agents exchange defined observations. Multi-agent learn-
+ing also introduces non-stationarity because each agent experiences an environment affected by policies
+that are changing at the same time. For Manzil, attention-based coordination may exceed the available
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  17
+
+tuning budget and make attribution difficult. The design therefore uses a small network and one shared
+policy, adopting useful phase-structure ideas without claiming to reproduce every cited architecture.
+
+3.2.3.3 Simulator Choice
+
+CityFlow was introduced as a reinforcement-learning environment designed for large-scale city traffic
+and high simulation throughput [16]. It is an important alternative when training speed and very large
+networks dominate the design. SUMO is retained for Manzil because the approved proposal already de-
+pends on its microscopic vehicle model, traffic-light programs, OpenStreetMap conversion tools, NetE-
+dit workflow, and TraCI interface. Lopez et al. describe the simulator’s architecture and its support
+for detailed, externally controlled experiments [17]. This combination is appropriate for a manageable
+multi-intersection prototype in which route validity, individual ambulance movement, signal transitions,
+and per-vehicle outcomes must be inspected. Retaining SUMO also avoids the additional work of show-
+ing that a migrated network and demand model behave equivalently in another simulator. The choice
+does not make simulation results equivalent to field evidence. Car-following parameters, lane connec-
+tions, signal programs, vehicle insertion, and map cleanup can materially change outcomes. Manzil
+therefore versions the network, demand, routes, simulator settings, and software release, and it limits
+conclusions to the declared simulation conditions.
+
+3.2.4 Dynamic Routing and Emergency Priority
+
+This theme covers shortest-path search on time-based costs and the research on emergency-vehicle rout-
+ing and signal preemption. It supports two connected Manzil components: the routing service that
+selects and revises the ambulance path, and the corridor coordinator that grants temporary, bounded
+priority at upcoming junctions. FYP-I implemented both, using Dijkstra as the reference, A* with an
+admissible heuristic, and a corridor lifecycle with safe transition, passage, and recovery. The subsections
+below review the algorithms, the preemption literature, and the combined implications for Manzil.
+
+3.2.4.1 Shortest-Path Algorithms
+
+Dijkstra’s algorithm finds a minimum-cost path on a graph whose edge weights are nonnegative [18].
+Hart, Nilsson, and Raphael established the formal basis of A*, which adds a heuristic lower-bound
+estimate to guide the search [1]. Both methods are well established, so selecting either algorithm is
+not a research contribution by itself. Manzil’s project-specific task is to build a graph that respects
+valid SUMO vehicle movements and to define a cost that reflects time rather than distance alone. The
+cost used by Manzil combines link travel time with non-overlapping estimates of queue discharge and
+residual signal delay, all expressed in seconds. If measured link travel time already includes queue delay,
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  18
+
+a separate congestion term cannot be added without double-counting. Dijkstra provides the reference
+route, while A* is permitted only when free-flow travel time forms an admissible lower bound under
+nonnegative added delay. Dynamic rerouting also needs stability. A route changes when the current path
+becomes infeasible or when an alternative offers a persistent improvement above a defined threshold.
+Route revisions, no-route cases, and computation time are evaluated rather than treated as incidental log
+messages.
+
+3.2.4.2 Emergency Preemption
+
+Humagain et al. systematically reviewed emergency-vehicle route optimization and preemption methods
+and identified recurring concerns involving dynamic traffic data, travel-time objectives, ordinary-traffic
+effects, safety, and limited real-world application [19]. The review supports an integrated evaluation
+but does not justify the unsupported claim that integrated solutions do not exist. Qin and Khan exam-
+ine transitions into emergency preemption and recovery to normal timing, including clearance and the
+queues created by interruption [20]. Their work shows that preemption is a lifecycle rather than a single
+instruction to set an approach green. Louati et al. investigate queue-aware emergency crossing across
+signalized intersections [21]. This is relevant because a green signal does not guarantee an unobstructed
+approach when the standing queue cannot discharge before the emergency vehicle arrives. Manzil there-
+fore models requested, safe-transition, active-priority, passage, recovery, and cancellation states. It also
+uses look-ahead activation, timeout, and bounded priority duration. The precise timing values remain
+configurable simulation policies, not certified real-world safety parameters, and the evaluation reports
+ordinary-traffic disruption together with ambulance benefit.
+
+3.2.4.3 Relevance to Manzil
+
+The literature establishes reliable building blocks while exposing the risks that arise when they are con-
+nected. One-stage detection is fast enough to investigate traffic video, but useful traffic indicators require
+tracking, road geometry, temporal rules, and validation on the intended viewpoint. Max-pressure and
+reinforcement-learning research provide responsive control strategies, yet their comparison depends on
+state representation, phase constraints, reward design, training data, and simulator configuration. Di-
+jkstra and A* solve well-defined path problems, but emergency routing remains only as credible as
+its movement graph, time-based costs, observation freshness, and rerouting stability. Preemption re-
+search makes safe transition and recovery central, and the review of emergency methods shows why
+ordinary-traffic disruption cannot be omitted. Manzil’s contribution is consequently not a new detector,
+shortest-path algorithm, or reinforcement-learning family. It is the controlled evaluation of an integrated
+and traceable prototype in which perception and simulation evidence remain distinct, normal controllers
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK                                             19
+
+receive matched scenarios, routing and corridor effects are separated, and ambulance benefit is reported
+with network disruption and recovery. The unresolved question is whether that integration yields con-
+sistent benefits under the selected scenarios and constraints.

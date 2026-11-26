@@ -1,0 +1,306 @@
+4.9 Database Design
+
+This section defines the logical data model that keeps experiments, observations, control decisions, and
+emergency missions traceable. The model is independent of the storage engine. In FYP-I it is realized
+as versioned files: every run folder holds a manifest with the configuration, seed, software versions,
+commit, and checksums, a metrics file, time series, signal events, applied controls, and mission records
+with route versions and corridor events. A relational database behind the same model is planned for
+FYP-II, when the five-screen dashboard needs cross-run queries.
+
+4.9.1 Entity Relationship Diagram
+
+Persistent data is reserved for configuration, observations, decisions, missions, and outcomes that re-
+quire audit or comparison. The live road graph, TraCI subscription, and frame buffers remain runtime
+state, while raw video is retained as a checksummed external artifact. Figure 4.8 presents the complete
+conceptual model with blue entity rectangles, green attribute ovals, amber relationship diamonds, and
+cardinalities beside relationship lines. The dashed regions separate experiment configuration and evi-
+dence, observation and control records, and emergency routing and priority. Figures 4.9, 4.10, and 4.11
+enlarge those regions so keys, attributes, and named relationships remain readable at normal print size.
+Primary keys are underlined, foreign keys are marked FK, and optional ownership is expressed explic-
+itly. The diagrams describe a proposed logical schema and do not claim that a production database has
+already been populated.
+
+Figure 4.9 enlarges the experiment-configuration region of the overview. A Scenario defines immutable
+network and demand versions and may be reused by several ExperimentRun records. Each run fixes
+its seed, controller version, status, and configuration at start, then owns its MetricSample and Artifact
+records. The records relationship is deliberately named because metrics and exported files are evi-
+dence produced under one run rather than free-standing data. Metric samples retain a definition version,
+interval, value, and unit, while artifacts retain a type, URI, checksum, and provenance. These associa-
+tions prevent results from different seeds or controller configurations from being combined without their
+originating run. They also permit an evaluator to trace a displayed chart or exported file back to the
+configuration that produced it.
+
+Figure 4.10 separates the two permitted observation owners and connects observations to control ev-
+idence. Simulation observations reference an ExperimentRun; offline video observations reference a
+VideoJob. Exactly one owner is present for each observation, so a record cannot be presented simultane-
+ously as simulator truth and video-derived evidence. The Observation entity carries source mode, entity
+identifier, effective and validity times, values, units, and confidence. A ControlDecision refers to the run
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                                                        45
+
+Experiment Configuration and Evidence                                Observation and Control Evidence
+
+scenario_id                            run_id             seed       video_job_id                                    observation_id
+                  1
+                     defines     0..*                                VideoJob      1            produces     0..*    Observation
+ Scenario                               ExperimentRun
+
+                                                                                                                     1
+
+                                             1
+
+                                                                                                                     informs
+
+MetricSample   0..*  records           0..*     Artifact                                    1                                0..*
+                                                                     ExperimentRun                        0..*
+                                                                                                owns
+                                                                                                                  ControlDecision
+
+metric_id                                       artifact_id                                                          decision_id
+
+Emergency Routing and Priority
+
+                                             mission_id                            route_id           version
+
+ExperimentRun  1     owns        0..*  EmergencyMission           1  versions    1..*
+                                                                                         RouteVersion
+                                                                                                   1                   event_id
+                                                                                                               0..*  PriorityEvent
+                                                                                           authorises
+
+Figure 4.8: Complete grouped conceptual ER model using entity, attribute, and relationship symbols
+
+Experiment Configuration and Evidence
+
+scenario_id          network_version                      run_id              scenario_id (FK)
+
+Scenario                      1        defines            0..*    ExperimentRun                      status
+
+demand_version                                     seed                   1      controller_version
+                                                0..*                 records                 0..*
+
+metric_name                                     value, unit                        URI                               checksum
+
+                          MetricSample                                                                Artifact
+
+               metric_id                     run_id (FK)                           artifact_id                       run/job_id (FK)
+
+Figure 4.9: Experiment scenarios, runs, metrics, and artifacts with conceptual attributes
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                             46
+
+and to the observation context used by the controller, while preserving requested and applied phases and
+any safety reason. The named informs relationship expresses causal use rather than simple co-location.
+This structure supports stale-data checks and permits the evaluator to distinguish a controller error from
+an unavailable observation, rejected action, or safety transformation.
+
+Observation and Control Evidence
+
+video_job_id   clip_checksum            observation_id            run/job_id (FK)
+
+VideoJob       1              produces  0..*         Observation       valid_until
+
+model_version                       source_mode         1              values, units, confidence
+
+                           1  owns                         informs                 requested_phase
+ExperimentRun                                                    0..*               applied_phase
+
+                                        0..*
+                                                      ControlDecision
+
+                                        decision_id     run_id (FK)                reason, effective_step
+
+Figure 4.10: Observation ownership and control-decision evidence with conceptual attributes
+
+Figure 4.11 enlarges the emergency-control chain. A run can own several mission attempts over its life-
+time, although the core scope permits only one active mission at a time. Each accepted dispatch creates
+an EmergencyMission with vehicle, origin, destination, and status. An accepted route or reroute creates
+a new immutable RouteVersion rather than overwriting the previous path. The versions relationship is
+one-to-many and the version number increases within its mission. PriorityEvent records then reference
+the exact route version that authorised a request, safe transition, active-priority interval, passage, cancel-
+lation, or recovery state. This structure allows obsolete priority work to be cancelled after rerouting and
+later explains which path justified every intersection action. The ER notation therefore reflects the same
+causal ownership enforced by the corridor state machine.
+
+4.9.2 Data Dictionary
+
+Table 4.14 defines the principal identifiers and integrity constraints represented in the ER diagrams. It
+adds the provenance and validity rules that cannot be communicated by cardinality alone, including
+immutable run configuration, mandatory observation source and units, monotonically increasing route
+versions, and metric-version compatibility. The dictionary also distinguishes large external artifacts from
+relational records so videos, models, and logs can remain checksummed files without becoming database
+blobs. Together, the diagram and dictionary establish the proposed storage contract for implementation
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                                           47
+
+Emergency Routing and Priority                                           run_id (FK)
+
+                                                   mission_id
+
+ExperimentRun    1  owns           0..*                                                   vehicle_id
+                                            EmergencyMission                          origin, destination
+                                                          1
+
+                                                               versions
+
+                     route_id                   1..*                                    version
+                 mission_id (FK)       RouteVersion                                   edges, cost, trigger
+
+                                                1
+
+                                       authorises
+
+                       event_id                 0..*                                  intersection_id
+                    route_id (FK)      PriorityEvent                                   state, effective_step
+
+Figure 4.11: Emergency missions, route versions, and priority events with conceptual attributes
+
+and evaluation.
+
+                                    Table 4.14: Data dictionary
+
+Entity              Key fields                                           Integrity rule
+                                                                         References immutable network and demand
+Scenario            scenario_id,                                         manifests.
+
+                    network_version,                                     Configuration becomes immutable after start;
+                                                                         terminal reason required.
+                    demand_version                                       Clip provenance and model version become
+                                                                         immutable after processing begins.
+Run                 run_id, scenario_id, seed,                           Exactly one owner is present; source and units
+                                                                         are mandatory and validity cannot be inferred.
+                    controller_version, status
+                                                                         Requested and applied actions are separate
+VideoJob            job_id, clip_checksum,                               fields.
+
+                    model_version, status
+
+Observation         run_id or job_id,
+
+                    source_mode, entity_id,
+
+                    observed_at, valid_until,
+
+                    values, units
+
+ControlDecision run_id, intersection_id,
+
+                    requested_phase,
+
+                    applied_phase,
+
+                    effective_step, reason
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                             48
+
+               Table 4.14: Data dictionary (continued)
+
+Entity         Key fields                    Integrity rule
+Mission
+RouteVersion   mission_id, run_id,           Only one active core mission per run.
+PriorityEvent  vehicle_id, origin,
+MetricSample   destination, status           Version increases monotonically; path begins
+Artifact       mission_id, version,          at valid current position.
+               edge_list, cost_seconds,
+               trigger, created_at           References the route version that justified
+               mission_id, route_version,    priority.
+               intersection_id, state,
+               requested/applied time        Comparisons require matching metric name,
+               run_id, metric_name,          version, and unit.
+               metric_version, value, unit,
+               interval                      Content is addressable and provenance is
+               run/job_id, type, URI,        retained.
+               checksum,
+               license/provenance
+
+4.10 Risk Analysis
+
+Table 4.15 records technical and research risks that could invalidate the prototype or its conclusions.
+Likelihood and impact are qualitative planning judgments rather than measured probabilities. The
+highest-consequence risks concern invalid signal phases, irreproducible results, unsuitable map imports,
+and evidence that cannot be legally or reliably used. Each mitigation is paired with a bounded fallback
+so that the team can preserve an honest deliverable if a preferred component fails. For example, a docu-
+mented synthetic network is preferable to an unverified real-map extract, and a negative reinforcement-
+learning result is preferable to tuning on the final test scenarios. The register also treats timing drift,
+route oscillation, occlusion, and reward imbalance as system-level concerns rather than isolated coding
+defects. These risks are revisited through invariant tests, scenario checks, provenance records, and the
+controlled comparisons defined in Chapter 5; unresolved items must remain visible in the final limita-
+tions rather than being converted into unsupported performance claims.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                           49
+
+                              Table 4.15: Risk register
+
+Risk             Rating       Mitigation                             Fallback
+
+Map import lacks Medium       Inspect and clean a small extract Use a documented
+
+valid signals/turns likelihood; high early; validate routes and phases synthetic grid
+
+                 impact
+
+Local video lacks Medium      Use licensed public sequences and Evaluate public
+
+labels or permission likelihood; high record provenance              data only; state
+
+                 impact                                              domain gap
+
+Occlusion causes High likelihood; Use region rules, temporal         Limit claims to
+
+unstable counts  medium impact aggregation, and tracker              labelled conditions
+
+                              comparison
+
+RL fails to converge Medium   Use stable baselines, bounded          Report a negative
+
+or generalize    likelihood; high actions, and training-only tuning or partial finding
+
+                 impact
+
+Reward improves Medium        Evaluate multiple metrics and          Reject a policy that
+
+one metric unfairly likelihood; high enforce starvation constraints  violates fairness
+
+                 impact                                              checks
+
+Rerouting oscillates Medium   Apply a benefit threshold,             Retain the current
+
+                 likelihood;  persistence, cooldown, and closure feasible route
+
+                 medium impact exception
+
+Preemption leaves Low likelihood; Use one state machine and test     Cancel and enter a
+
+unsafe phase     very high    transition invariants                  safe recovery path
+
+                 impact
+
+Service timing drifts Medium  Use one step owner, simulation         Run synchronously
+
+from simulation  likelihood; high timestamps, and bounded queues without live
+
+                 impact                                              perception
+
+Insufficient compute Medium   Profile early; reduce                  Demonstrate
+
+                 likelihood;  network/model size and train           recorded inference
+
+                 medium impact offline                               and compact
+
+                                                                     scenarios
+
+Results are not  Medium       Retain immutable manifests,            Exclude
+
+reproducible     likelihood; high seeds, versioned metrics, and      untraceable runs
+
+                 impact       exports
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  50
+
+4.11 Conclusion
+
+The specification centers on traceability and failure visibility rather than on a collection of loosely con-
+nected features. It requires one simulation-clock owner, legal signal transitions, stable route revision,
+explicit observation freshness, immutable run configuration, and comparisons that cannot hide incom-
+patible settings or failed trials. Functional requirements define what the operator and services must
+observe, while non-functional requirements constrain timing, ownership, privacy, auditability, and re-
+covery. The use cases exercise both successful and failed paths, the wireframes show how critical state
+and provenance remain visible, and the data model preserves the route and decision history needed
+for later analysis. The risk controls connect those requirements to bounded fallbacks and verification.
+Chapter 5 converts the specification into a staged research protocol, and Chapter 6 assigns each mutable
+resource and interface to a clear architectural owner. Implementation status is reported separately in
+Chapter 7 so that a specified feature is never presented as completed evidence.

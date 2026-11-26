@@ -1,0 +1,277 @@
+6.6 Sequence Diagrams
+
+The sequence diagrams show the causal order of messages in the three interactions that matter most
+for correctness: a normal signal-control update, an ambulance dispatch with corridor activation, and a
+route revision with recovery. Each diagram makes visible which component may change simulation
+state and in what order evidence is recorded. The implemented loop follows these sequences, with the
+dashboard’s commands queued and executed between two simulation steps.
+
+6.6.1 Normal Control Update
+
+Orchestrator  Adapter        State     Controller     Experiment       Store
+
+advance(step)
+
+                     raw observations
+              snapshot(t)
+
+                  request(snapshot)
+
+                  phase request
+
+validated action
+
+                                       applied event
+
+                                                      validated record
+
+              Figure 6.3: Sequence for a normal signal-control update
+
+Figure 6.3 shows the causal order for one normal-control decision. The orchestrator first asks the adapter
+to advance one simulation step, after which raw subscriptions are normalized into a complete snapshot.
+Only then does the selected controller receive state and return a phase request. The orchestrator vali-
+dates that request against phase membership, elapsed minimum green, clearance, and ownership before
+the adapter applies it. The resulting event passes through the experiment service for schema validation
+and run association before the repository stores it. A controller therefore never observes a partial up-
+date, cannot actuate SUMO as a side effect, and cannot write an unvalidated evidence record. When a
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                          80
+
+controller decision interval spans several simulation steps, the last applied action remains in force while
+state and metrics continue to be sampled at their declared intervals. The stored event includes requested
+and applied action, effective step, snapshot step, and intervention reason, allowing replay to distinguish
+a policy choice from a safety transformation.
+
+6.6.2 Ambulance Dispatch and Corridor Activation
+
+Dashboard  API  Routing        Corridor           Adapter Experiment  Store
+
+dispatch(o,d)
+
+           validate + compute
+
+                route v1
+                           look-ahead requests
+
+                               safe transition request
+
+                               applied state
+
+                                                priority events
+
+                                                                 validated records
+
+mission view
+
+Figure 6.4: Sequence for ambulance dispatch and corridor activation
+
+Figure 6.4 begins when the operator submits an origin and destination through the dashboard. FastAPI
+validates the command and asks the routing service to resolve accessible edges and compute the first
+immutable route version. A successful route is returned for the mission view and supplied to the corri-
+dor coordinator, which creates bounded look-ahead requests rather than activating the whole path. Each
+due request passes through safe transition before the adapter applies priority. The corridor sends mis-
+sion and priority events to the experiment service, which validates their identifiers and route versions
+before persistence. Invalid endpoints or a disconnected graph stop the sequence before an ambulance or
+partial corridor is activated. The dashboard receives a derived mission view after authoritative state has
+changed, so disconnecting the client cannot cancel or delay the mission. The sequence separates route
+computation, signal ownership, evidence validation, and presentation while retaining the identifiers re-
+quired to trace an active priority state back to the command and route version.
+
+6.6.3 Rerouting and Recovery
+
+Figure 6.5 shows how a closure or sustained cost change is handled after dispatch. The routing service
+evaluates a candidate from the ambulance’s valid current position and applies the configured feasibility,
+benefit, persistence, and cooldown rules. If accepted, a new immutable route version is published to
+the corridor coordinator. Requests associated with the old remaining path are cancelled before the new
+look-ahead set is activated, preventing simultaneous priority for incompatible route versions. Passage
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                                              81
+
+State  Routing                       Corridor        Adapter        Experiment         Store
+
+      cost/closure change
+
+       candidate + threshold
+
+                           route v2
+
+                                             cancel obsolete
+                                        request new look-ahead
+
+       passage confirmed
+
+                                        recovery action
+                                                  revision/events
+
+                                                                              validated records
+
+Figure 6.5: Sequence for route revision, obsolete-priority cancellation, and recovery
+
+confirmation still originates from traffic state and moves the relevant intersection into recovery, while
+route revisions, cancellations, requests, and recovery events are stored in causal order. When no feasible
+replacement exists, the mission becomes blocked and upcoming priority is cancelled rather than pre-
+serving a corridor that no longer reaches the destination. This interaction makes rerouting an auditable
+state transition, not merely a line redrawn on the dashboard. Rejected candidates also remain available
+for diagnosis.
+
+6.7 Policies and Tactics
+
+This section turns the architecture into concrete operating rules: the corridor lifecycle, the contracts
+between modules, resource ownership, error handling, implementation policies, testing, and code orga-
+nization. These rules decide how the system behaves when something goes wrong, which is where an
+apparently working prototype most often produces untrustworthy evidence. Each subsection states the
+rule and its implemented form.
+
+6.7.1 Corridor State and Safety Policy
+
+IDLE   valid                            due    SAFE TRANSITION                cleared  ACTIVE PRIORITY
+                  REQUESTED
+
+                           cancel/fail         safe                                            passes
+                                                                                       PASSAGE
+                                                          fallback  RECOVERY
+                           CANCEL/FAILURE
+
+normal boundary
+
+            Figure 6.6: Intersection-level moving-corridor state transitions
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                          82
+
+Figure 6.6 defines the lifecycle owned by each affected intersection. IDLE accepts a valid route-
+versioned request, but REQUESTED does not imply signal ownership. A request that expires or be-
+comes invalid at this stage returns directly to IDLE because no signal state has changed and recovery
+would be misleading. When activation becomes due, SAFE TRANSITION waits for the current phase’s
+minimum service, shortened to 5 s for corridor requests, and completes the full yellow and all-red
+clearance. ACTIVE PRIORITY serves only the ambulance movement and is bounded by a maximum
+duration. Confirmed clearance creates a PASSAGE event, after which RECOVERY restores a valid nor-
+mal boundary before ordinary control resumes. Cancellation, timeout, or route revision during SAFE
+TRANSITION or ACTIVE PRIORITY enters the guarded failure and recovery path because signal own-
+ership may already have changed. The distinction prevents an unowned queued request from triggering
+unnecessary compensation while ensuring that every applied intervention returns safely to IDLE. Each
+transition records its trigger, route version, and effective step.
+
+6.7.2 Interface and Event Contracts
+
+Table 6.3 lists the minimum fields carried across important module boundaries. Version and time fields
+prevent a consumer from accepting an unknown schema or treating an old snapshot as current. Source
+mode, units, confidence, and validity distinguish simulator values from calibrated or proxy video obser-
+vations. SignalState identifies both the legal successors and current owner, while ControlRequest has no
+direct side effect and can be transformed into an authoritative AppliedControl record by the safety path.
+RoutePlan and PriorityRequest carry the mission and route version needed to reject obsolete corridor
+work. MetricSample retains its definition version and interval so summaries cannot combine measure-
+ments whose meaning changed during development. Field names are conceptual and may be mapped
+to Python or JSON naming conventions, but their semantics remain stable. This contract-first approach
+also makes integration tests possible before every research component is complete, because a stub can
+produce valid messages without bypassing ownership rules.
+
+                                    Table 6.3: Core interface and data-contract fields
+
+Contract         Required fields        Rule
+TrafficSnapshot
+                 schemaVersion,         Consumers reject unknown schema or expired
+
+                 sourceMode, pro- validity; wall time and simulation time are dis-
+
+                 ducedAt,        effec- tinct.
+
+                 tiveStep, validUntil,
+
+                 networkId
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                              83
+
+                 Table 6.3: Core interface and data-contract fields (continued)
+
+Contract         Required fields  Rule
+ApproachState
+                 intersectionId, ap- Missing is not zero; uncalibrated physical quan-
+SignalState      proachId, count, tities are omitted.
+ControlRequest   queue, wait, speed,
+                 occupancy, units,
+AppliedControl   confidence
+RoutePlan        intersectionId, pro- Owner is NORMAL or CORRIDOR; legal next
+PriorityRequest  gramId, phaseId, phases come from validated configuration.
+MetricSample     phaseElapsed, legal-
+                 Next, owner
+                 controllerId, in- Request has no side effect and may be rejected
+                 tersectionId, re- or transformed.
+                 questedPhase, du-
+                 ration/extension,
+                 snapshotStep, reason
+                 requestId, applied- This record is authoritative for analysis.
+                 Phase, effectiveStep,
+                 safetyIntervention,
+                 reason
+                 missionId, routeV- Edge order must be continuous from valid cur-
+                 ersion, edgeIds, rent position.
+                 costSeconds, snap-
+                 shotStep, trigger
+                 missionId, routeVer- Obsolete route version or expired request is re-
+                 sion, intersectionId, jected.
+                 movementId, ETA,
+                 expiresAt
+                 runId, metricName, Aggregation across mismatched versions is pro-
+                 metricVersion, inter- hibited.
+                 val, value, unit
+
+Event ordering is based on simulation step within a run and a monotonic sequence number assigned
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN  84
+
+by the orchestrator. Wall-clock timestamps support diagnostics but do not determine traffic causality
+because inference, rendering, and storage latency can vary independently of simulated time. A snapshot
+identifies the step at which its values became effective, and an applied signal event records the step at
+which the adapter enacted it. Route revisions and priority events are enqueued in an order that prevents
+an old request from being interpreted as current. Missing values remain missing rather than being
+converted to zero, and unknown schema versions are rejected rather than partially decoded. These rules
+give the fields in Table 6.3 operational meaning and support replay, stale-data handling, and comparison
+across runs without assuming perfectly synchronized wall clocks. They also allow a delayed write to be
+distinguished from a delayed decision during failure analysis and experimental replay.
+
+6.7.3 Resource Ownership Tactics
+
+The orchestrator is the only writer to simulation time, and TraCI access is serialized behind the adapter.
+Controller computation receives an immutable snapshot and returns a request rather than holding a
+reference to mutable global state. Perception uses a bounded work queue; if inference falls behind, the
+worker marks observations late or drops work according to a recorded policy instead of blocking control
+indefinitely. Dashboard streams are lossy views, so a slow client may skip intermediate snapshots but
+cannot delay decisions. Run configuration becomes immutable after start. The current route version is
+updated atomically with cancellation of obsolete corridor requests, preventing new and old paths from
+owning priority concurrently. Database writes may be batched where safe, but an applied signal event or
+mission transition is not acknowledged until it has entered a durable bounded queue. During shutdown,
+the API stops accepting new commands, the orchestrator ends or detaches SUMO safely, queued records
+are flushed, and the run receives an explicit completed, stopped, failed, or incomplete terminal state.
+
+6.7.4 Error Handling and Recovery
+
+Table 6.4 defines immediate containment and retained evidence for failures at each major boundary. A
+SUMO or TraCI failure stops decision-making because continuing to show live state would be mislead-
+ing, whereas a dashboard disconnect leaves the authoritative experiment unaffected. Stale observations
+and invalid controller requests are rejected or handled through a declared simulator or fixed-control
+fallback, and every interval using that fallback is marked so it cannot be included silently in a clean
+learned-controller aggregate. A missing route prevents partial corridor activation, while a lost ambu-
+lance or timeout cancels future priority and moves active intersections through recovery. Persistence
+uses a bounded buffer only long enough to tolerate a transient issue; the run stops before evidence loss
+grows without limit and is marked incomplete if durability cannot be restored. These policies favor an
+explicit failed run over an apparently successful record whose causal events are missing. Integration
+CHAPTER 6. HIGH-LEVEL AND LOW-LEVEL DESIGN                                                85
+
+tests on small networks verify both the immediate behavior and the final recorded state.
+                                             Table 6.4: Failure handling strategy
+
+Failure                    Immediate behavior                 Recorded/recovery behavior
+
+SUMO launch/TraCI dis-     Stop decisions and do not present  Mark run failed; retain command,
+connect                    live state                         stderr, step, and manifest
+Stale observation          Exclude or use declared            Record staleness and selected
+Invalid controller action  simulator fallback                 fallback source
+RL service unavailable     Reject through safety filter       Apply fixed/safe continuation
+                                                              and record intervention
+No route                   Hold the current legal phase       Count each fallback decision
+Lost ambulance/timeout     (FYP-I); switching to a baseline   with its reason
+Persistence failure        is planned
+                           Do not spawn/activate partial      Mark mission blocked; show
+Dashboard disconnect       corridor                           cause and graph snapshot ID
+                           Cancel future priority and         Mark mission failed/cancelled
+                           recover active intersections       and preserve last position
+                           Buffer within a bounded queue;     Mark run incomplete if durability
+                           stop before unbounded evidence     cannot be restored
+                           loss
+                           Continue experiment unaffected     Reconnect from current snapshot
+                                                              and event cursor

@@ -1,0 +1,106 @@
+7.1.5 Ambulance Routing and Rerouting
+The routing graph in manzil/routing/graph.py uses SUMO edges as nodes. An arc joins two edges
+
+only when SUMO has a lane connection between them that an emergency vehicle may use, so every
+route can be driven and contains no U-turns. The edge cost follows Equation 5.4: the free-flow running
+time at the currently reported speed limit, plus 2 s per halting vehicle divided by the number of lanes,
+plus a declared 10 s signal delay on signalized edges, and an infinite cost for a closed edge. Snapshots
+older than five steps or with negative costs are rejected. Dijkstra is the reference search. A* uses the
+straight-line distance divided by the maximum speed, scaled by 0.896, the smallest ratio of edge length
+CHAPTER 7. IMPLEMENTATION AND TEST CASES  95
+
+to node distance on the grid. The scaling is needed because SUMO edge lengths exclude the junction
+interiors, and it keeps the heuristic admissible.
+
+The mission logic in manzil/routing/mission.py implements Algorithm 1. The route is refreshed
+every 5 s from the ambulance’s current edge. A closure on the remaining route is accepted at once.
+Otherwise a cheaper route is adopted only if it saves more than δ = 10 s for at least τ = 10 s, with a 30
+s cooldown after each revision. Each accepted route becomes a new numbered version with its trigger,
+and rejected candidates are logged. Static routing, used as the comparison arm, plans once on free-flow
+costs at dispatch.
+
+7.1.6 Green Corridor
+
+The corridor coordinator in manzil/corridor/coordinator.py implements Algorithm 2 with a look-
+ahead of the next two signalized junctions on the ambulance’s remaining route. A junction is requested
+when it enters the look-ahead and activated when the ambulance’s free-flow arrival time is within 15
+s plus the time needed to clear the queue on its approach. Activation gives the corridor ownership of
+that junction in the safety filter, so normal requests are held, and the corridor requests the phase that
+serves the ambulance’s movement. Priority lasts at most 60 s. Passage is detected when the ambulance
+leaves the approach edge, after which ownership returns to normal control through the safety filter, and
+recovery lasts until the junction’s queue is back to its mean of the 120 s before activation. A route
+revision cancels requests at junctions that are no longer on the route.
+
+A live dashboard run showed the ambulance stopping at red lights on its route, so the team added a per-
+second record of why the ambulance stood still and measured it in 20 runs per background controller.
+The main cause was a defect. After a route revision, SUMO keeps the edges already driven in the
+vehicle’s route, so SUMO’s route index was ahead of Manzil’s route plan, and the corridor skipped the
+junction directly ahead of the ambulance. The coordinator now finds the ambulance’s position by edge.
+With this fix the ambulance was never first in line at a red light at a corridor junction. Its remaining stops
+were vehicles queued in front of it and a permissive left turn at the final junction.
+
+Four further changes were then tested on medium and heavy demand with five seeds and both fixed-time
+and DQN background control: earlier activation with a look-ahead of three junctions, shortening the
+current green for a corridor request, making ordinary vehicles give way with SUMO’s blue-light device,
+and all three together. Only the shortened green was kept. In the resulting version of the corridor, a
+corridor request may end the current green after 5 s instead of the normal 10 s. Yellow and all-red are
+never shortened, normal control always keeps the full 10 s, and the safety monitor treats a green shorter
+than 10 s as a violation unless the corridor owns the junction, and a green shorter than 5 s as a violation in
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                96
+
+every case. Earlier activation gave small and inconsistent gains while increasing cross-street queueing
+by 4 to 14 percent. The blue-light device made the ambulance cross red lights; once red lights were
+enforced again, it caused gridlocks, because it needs SUMO’s sublane model. It remains an option that
+is off by default. The measured effects are reported in Chapter 9.
+
+7.1.7 Vehicle Detection, Tracking, and Counting
+
+Perception runs as three Kaggle jobs on two Tesla T4 GPUs. The first job, kaggle/yolo_data, builds
+the training data. UA-DETRAC labels four vehicle types, which are mapped to the project classes: car
+and van to car, bus to bus, and others to truck. Every tenth frame is used to avoid near-duplicates, regions
+that UA-DETRAC marks as ignored are filled grey, and the validation set consists of six whole training
+sequences, so frames of one sequence never appear in two splits. UA-DETRAC has no motorcycle
+labels, so COCO 2017 [27] images that contain a motorcycle are added, with all four classes labelled, to
+stop the detector from forgetting that class. Table 7.4 gives the resulting splits.
+
+                                         Table 7.4: Detector training and test data
+
+Split            UA-DETRAC                               COCO images with a motorcycle
+Train                                                    3,202 images
+Validation       7,365 frames from 54 sequences          300 images
+Test             867 frames from 6 whole sequences       –
+                 5,625 frames from the 40 official test
+Motorcycle test  sequences                               159 images from COCO val2017
+                 –
+
+The second job, kaggle/yolo_train, fine-tunes the COCO-pretrained YOLO11s [5] for 50 epochs at
+640 pixels with batch size 32 and seed 0. Training took 1.8 h and the best validation epoch was 40. The
+19 MB weights are kept in the repository with their SHA-256 checksum. The third job, kaggle/yolo_
+track, runs the fine-tuned detector with ByteTrack [2] at the full 25 frames per second on all 40 test
+sequences, which is 56,340 frames, at 40 to 66 frames per second.
+
+The counting logic in manzil/perception/counting.py is shared between the Kaggle job and the
+local tests. A full-width line is placed at 60 percent of the image height, and a track is counted once,
+when its box centre crosses the line, with its class taken as the majority over the track. Crossings inside
+ignored regions are dropped. Because UA-DETRAC gives true track identities, true counts are produced
+by passing the annotated boxes through the same counter, so the count error measures detection and
+tracking only. UA-DETRAC has no stop lines, so the queue indicator is a proxy: the number of tracked
+vehicles that moved less than a quarter of their box height in one second. A Kaggle script job must be a
+single file, so a build script copies the counting module into the job, and a test fails if that copy is out of
+date.
+CHAPTER 7. IMPLEMENTATION AND TEST CASES  97
+
+7.1.8 Dashboard and API
+
+The FastAPI service in manzil/api/ serves the built dashboard and the API on port 8000. One live run
+executes in a worker thread with the same step order as the batch runner: snapshot, routing, corridor,
+controller, safety filter, and adapter. Dashboard commands such as dispatching an ambulance or closing a
+road are queued and executed between two simulation steps, so only the worker thread touches SUMO.
+The live run uses the TraCI back end, so a SUMO failure cannot stop the API. The API offers run
+start, stop, and speed, network geometry, current state, ambulance dispatch, and road closure, and a
+WebSocket stream sends the state about ten times per second.
+
+The dashboard in dashboard/ is written in React 19 and TypeScript and built with Vite. It draws the
+network as plain SVG from the geometry in the SUMO network file. It shows the signal colour of
+every link at its stop line, the vehicles, queue shading on each road, closed roads, the ambulance with its
+current route version, and the corridor state of each junction. Chapter 8 explains how to use it.

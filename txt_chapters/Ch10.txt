@@ -16,7 +16,7 @@ and measured each component against a matched baseline on held-out seeds.
 The results are encouraging within their limits. On the synthetic grid, the parameter-sharing DQN
 reduced mean travel time by 9 to 11 percent and waiting time by 24 to 40 percent against tuned fixed-
 time control, at the cost of longer red times for minor phases. Live travel-time routing roughly halved
-the ambulance's travel time around an obstruction, and the moving corridor reduced it by 34 to 59
+the ambulanceâ€™s travel time around an obstruction, and the moving corridor reduced it by 34 to 59
 percent while ordinary-traffic queues rose by about 3 percent. The fine-tuned detector reached 0.799
 mAP50 on UA-DETRAC test data, and the counting chain had a mean error of 2.60 vehicles per clip.
 No experiment produced an unsafe signal state, and the ambulance never crossed a red light. The work
@@ -45,7 +45,7 @@ O2  Implemented YOLO11s fine-tuned on UA-DETRAC and COCO motorcycles,
 
              sequences; Lahore clips remain
 
-O3  Partial  Synthetic 3×3 signalized grid with four seeded demand profiles;
+O3  Partial  Synthetic 3Ã—3 signalized grid with four seeded demand profiles;
 
              Lahore network remains
 
@@ -68,20 +68,20 @@ O8  Implemented Run manifests with configuration, seed, versions, commit, and
              checksums; reproducibility tested
 
 In summary, the following work was completed:
-    · a reproducible 3×3 SUMO grid with four seeded demand profiles and a network reader that works
+    â€¢ a reproducible 3Ã—3 SUMO grid with four seeded demand profiles and a network reader that works
        on any SUMO network;
-    · a single simulation adapter, a safety filter with a maximum-red guard, and an independent safety
+    â€¢ a single simulation adapter, a safety filter with a maximum-red guard, and an independent safety
        monitor;
-    · fixed-time, pressure-based adaptive, and parameter-sharing Double DQN controllers, with the
+    â€¢ fixed-time, pressure-based adaptive, and parameter-sharing Double DQN controllers, with the
        DQN trained in 17 minutes on CPU;
-    · time-based ambulance routing with Dijkstra and an admissible A*, and closure- and improvement-
+    â€¢ time-based ambulance routing with Dijkstra and an admissible A*, and closure- and improvement-
        triggered rerouting;
-    · a moving green corridor with a 5 s corridor minimum green, and a per-second record of why the
+    â€¢ a moving green corridor with a 5 s corridor minimum green, and a per-second record of why the
        ambulance stands still;
-    · a vehicle detection, tracking, counting, and queue-estimation pipeline trained and evaluated on
+    â€¢ a vehicle detection, tracking, counting, and queue-estimation pipeline trained and evaluated on
        Kaggle GPUs;
-    · a FastAPI service and a React dashboard for live runs with ambulance dispatch and road closure;
-    · batch and comparison tools with paired statistics, and 147 automated tests, all passing.
+    â€¢ a FastAPI service and a React dashboard for live runs with ambulance dispatch and road closure;
+    â€¢ batch and comparison tools with paired statistics, and 147 automated tests, all passing.
 CHAPTER 10. CONCLUSION AND FUTURE WORK                                                131
 
 10.3 Future Work
@@ -96,7 +96,7 @@ semester from January to May 2027.
 
 No. Work item                Description and expected output               Months
 
-1  Lahore road network       Select a Lahore area with a hospital, export January­
+1  Lahore road network       Select a Lahore area with a hospital, export Januaryâ€“
 
                              it from OpenStreetMap, correct lanes,         February
 
@@ -106,7 +106,7 @@ No. Work item                Description and expected output               Month
 
                              and tests
 
-2  Local video and new       Record a few Lahore traffic clips with        January­
+2  Local video and new       Record a few Lahore traffic clips with        Januaryâ€“
 
    classes                   permission, label a sample including          March
 
@@ -114,7 +114,7 @@ No. Work item                Description and expected output               Month
 
                              and measure the count error on local video
 
-3  Full evaluation protocol  Ten matched seeds, held-out demand            February­
+3  Full evaluation protocol  Ten matched seeds, held-out demand            Februaryâ€“
 
                              patterns, and the full warm-up and            April
 
@@ -124,17 +124,17 @@ No. Work item                Description and expected output               Month
 
                              confirm the corridor result on new seeds
 
-4  Controller improvements   Retrain the DQN on the Lahore network March­April
+4  Controller improvements   Retrain the DQN on the Lahore network Marchâ€“April
 
                              with several training seeds, add a fairness
 
                              term or tighter guard, and compare again
 
-5  Corridor completion       Downstream-capacity check, compensation March­April
+5  Corridor completion       Downstream-capacity check, compensation Marchâ€“April
 
                              plan during recovery, and vehicles giving
 
-                             way to the ambulance with SUMO's
+                             way to the ambulance with SUMOâ€™s
 
                              sublane model
 CHAPTER 10. CONCLUSION AND FUTURE WORK                                        132
@@ -143,7 +143,7 @@ CHAPTER 10. CONCLUSION AND FUTURE WORK                                        13
 
 No. Work item              Description and expected output            Months
 
-6  Dashboard and database  Five-screen dashboard (G01­G05), stale February­
+6  Dashboard and database  Five-screen dashboard (G01â€“G05), stale Februaryâ€“
 
                            and fallback warnings (FR-16), pause and April
 

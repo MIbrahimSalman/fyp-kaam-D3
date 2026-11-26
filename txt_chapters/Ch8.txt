@@ -24,7 +24,7 @@ cd dashboard && npm install && npm run build && cd ..
 
 The installation line with [rl] is only needed for the DQN controller; without it the dashboard lists
 the DQN as unavailable. The service then serves the dashboard at http://127.0.0.1:8000, which is
-opened in a web browser. Figure 8.1 shows the start screen: the map of the 3�3 grid on the left and the
+opened in a web browser. Figure 8.1 shows the start screen: the map of the 3×3 grid on the left and the
 control panel on the right.
 
 8.2 Running a Simulation
@@ -47,14 +47,14 @@ CHAPTER 8. USER MANUAL  116
 
 The AMBULANCE panel selects the origin and destination roads and whether the green corridor is used.
 Dispatch ambulance inserts the ambulance and computes its first route, which is drawn in blue. The
-panel then shows the mission status, the route version and what caused it, the ambulance's current road,
+panel then shows the mission status, the route version and what caused it, the ambulance’s current road,
 speed, and number of stops, and the corridor state of each junction it is using, with a log of corridor
 events. Junctions held for the ambulance are marked with a ring. Only one ambulance can be active at a
 time.
 
 To test rerouting, a road is selected by clicking it on the map and closed with the INCIDENT panel.
-A closed road is marked with a red cross. If it lies on the ambulance's remaining route, a new route
-version with the trigger "closure" appears at once, and corridor requests that no longer lie on the route
+A closed road is marked with a red cross. If it lies on the ambulance’s remaining route, a new route
+version with the trigger “closure” appears at once, and corridor requests that no longer lie on the route
 are cancelled (Figure 8.3). When the ambulance reaches its destination, the mission status changes to
 ARRIVED and the panel shows its response time next to the free-flow time (Figure 8.4).
 
@@ -64,7 +64,7 @@ ARRIVED and the panel shows its response time next to the free-flow time (Figure
 
 The controlled experiments are run from the command line rather than the dashboard, because they
 need many seeded runs. Table 8.1 lists the main commands; each writes its run folders and a summary
-into the given output folder. A complete list, including the vision jobs on Kaggle, is in the repository's
+into the given output folder. A complete list, including the vision jobs on Kaggle, is in the repository’s
 README file.
 CHAPTER 8. USER MANUAL                                                              117
 

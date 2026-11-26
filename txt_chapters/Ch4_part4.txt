@@ -1,0 +1,260 @@
+4.7 Hardware and Software Requirements
+
+The development environment must support two different workloads: repeated model or controller ex-
+periments and a prepared, repeatable demonstration. The distinction avoids presenting a high-end train-
+ing machine as a mandatory deployment requirement. The hardware and software below are the envi-
+ronment actually used in FYP-I; capability statements remain only for the Lahore network, which has
+not yet been selected. Software choices are separated from hardware so that a library can be versioned or
+replaced without changing the resource description. Tables 4.11 and 4.12 list the resources and pinned
+versions behind every reported result. The demonstration uses the same network, controller configura-
+tion, metric schema, and software versions as the retained evaluation record even when it runs fewer
+scenarios.
+
+4.7.1 Hardware Requirements
+
+Table 4.11 lists the machines used in FYP-I. The team laptop has an Intel Core i7-8650U processor and
+16 GB of memory but no NVIDIA GPU; it runs SUMO, all controller and routing experiments, the
+API, and the dashboard. Long coding and experiment sessions also ran on cloud Linux machines with
+the same pinned software. Detector training and video tracking need a GPU, so they ran on Kaggle
+with two Tesla T4 GPUs of 15 GB each, and only small outputs such as metrics, plots, and the 19 MB
+model weights were brought back. The DQN was trained on CPU in 17 minutes because the grid is
+small. Large datasets stay on Kaggle and are referenced by name and checksum rather than copied.
+The demonstration therefore needs only a CPU machine: it shows prepared perception results and runs
+SUMO, the controllers, and the dashboard live.
+
+4.7.2 Software Requirements
+
+In Table 4.12 each technology is tied to a task and to a configuration item that must be recorded. SUMO
+and TraCI provide the authoritative simulation environment and control interface. Python supports per-
+ception, routing, control, experiment orchestration, and analysis, while React and FastAPI form the
+interface boundary from the approved proposal. All versions are pinned in the project configuration so
+every machine installs the same software; SUMO is installed from the Python package index rather than
+a system installer for this reason. The synthetic grid was generated with SUMO’s own network gener-
+ator, so OpenStreetMap tools and NetEdit are reserved for the Lahore network in FYP-II. Git commit
+identifiers and the pinned versions are written into every run manifest.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                      39
+
+Table 4.11: Hardware resources for development and demonstration
+
+Resource            Development and training             Prepared demonstration
+Processor                                                The same laptop runs SUMO, the
+                    Intel Core i7-8650U laptop and       API, and the dashboard in real time
+Graphics processor  cloud Linux sessions for SUMO,
+                    controllers, routing, DQN training,  Not required; perception results are
+Memory              and analysis                         prepared in advance
+Storage             Kaggle notebooks with 2× Tesla T4
+Display/network     (15 GB) for YOLO training and        16 GB; no swapping observed during
+                    video tracking; no local NVIDIA      demonstration runs
+                    GPU                                  Repository checkout with the built
+                    16 GB on the laptop; sufficient for  dashboard and trained models
+                    parallel batch runs on the grid
+                    Repository with code, scenarios,     Local browser on the same machine;
+                    results, and the 19 MB detector      no network connection needed
+                    weights; datasets kept on Kaggle
+                    Local browser for the dashboard;
+                    internet only for Kaggle and the
+                    repository
+
+Table 4.12: Software technologies and configuration responsibilities
+
+Technology or resource Responsibility                         Configuration status
+
+Python                 Orchestration, perception, control,    Python 3.10 on the laptop;
+                       routing, metrics, and analysis         NumPy 2.2.6
+SUMO, TraCI, and lib-  Microscopic traffic simulation, state  SUMO 1.28.0 from the Python
+sumo                   access, route application, and signal  package index
+                       actuation
+React                  Operator dashboard                     React 19 with TypeScript, built
+                                                              with Vite
+FastAPI                Command, validation, query, and        FastAPI 0.162.5 with Uvicorn
+                       WebSocket streaming boundary           0.54.0
+Ultralytics YOLO and   Vehicle detection, tracking, and       Ultralytics 8.4.210; YOLO11s
+ByteTrack              counting                               fine-tuned checkpoint with
+                                                              SHA-256 recorded
+PyTorch                Double DQN training and inference      PyTorch 2.9.1 (CPU build)
+Kaggle CLI             Pushing training kernels and retriev-  Kaggle CLI 2.2.5
+                       ing outputs
+pytest and Ruff        Automated tests and code style         pytest 9.2.0 and Ruff 0.17.4
+OpenStreetMap tools    Network extraction and cleanup         Planned for the Lahore network
+and SUMO NetEdit                                              in FYP-II
+Git and file-based     Version control, manifests, metrics,   Git with run manifests; database
+records                and artifacts                          planned for FYP-II
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                 40
+
+4.8 Graphical User Interface
+
+The interface specification defines the screen inventory and navigation before presenting individual wire-
+frames. The five views in Table 4.13 are proposed screens rather than screenshots of implemented soft-
+ware; the single-page dashboard implemented in FYP-I is shown in Chapter 8. They validate informa-
+tion hierarchy, source disclosure, error visibility, and the actions needed for a controlled demonstration
+without fabricating implementation progress. The configuration view establishes an immutable run, the
+overview supports monitoring, the perception view explains one intersection, the emergency view ex-
+poses route and corridor state, and the analytics view supports comparison after completion. Figure 4.2
+shows the permitted navigation among these views. Monitoring pages do not acquire control authority:
+every command still passes through the validated API boundary. This separation lets a reader understand
+both the interface flow and the evidence available at each stage while preserving the project status stated
+elsewhere in the report.
+
+                            Table 4.13: Proposed graphical user interface screen inventory
+
+ID   Screen                    Primary user     Purpose
+
+G01  Experiment Configuration  Operator         Validate and start a versioned
+
+                                                scenario and controller
+
+                                                configuration.
+
+G02  Traffic Overview          Operator and evalua- Monitor network state,
+
+                               tor              warnings, controller source,
+
+                                                and active mission.
+
+G03  Perception and Intersection De- Operator and evalua- Inspect observation
+
+     tail                      tor              provenance, freshness,
+
+                                                confidence, and
+
+                                                approach-level measures.
+
+G04  Emergency Dispatch and Route Operator      Create a mission and monitor
+
+                                                route versions and corridor
+
+                                                transitions.
+
+G05  Comparative Analytics     Operator and evalua- Check comparability, inspect
+
+                               tor              metrics and failed runs, and
+
+                                                export evidence.
+
+The overview and perception wireframes provide complementary levels of detail. Figure 4.3 gives the
+operator a network-level view in which the selected run, controller, source mode, ambulance route,
+corridor lifecycle, and warnings remain visible together. This arrangement prevents a plausible map
+animation from hiding stale data or a fallback controller. Figure 4.4 narrows the view to one intersection
+and pairs a processed-video preview with model provenance, freshness, regional measures, confidence,
+and invalid-state indicators. The calibration field is explicit because pixel-derived queue proxies must
+not be mislabeled as physical queue length. Both designs use color only as a supporting cue; labels
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                41
+
+                     G01 Experiment
+                      Configuration
+
+                                validate and start
+
+                        G02 Traffic
+                         Overview
+
+G03 Perception and   completed run                                   G04 Emergency
+Intersection Detail                                                Dispatch and Route
+
+                                         G05 Comparative
+                                              Analytics
+
+Figure 4.2: Primary navigation flow between the planned Manzil screens
+
+retain the meaning required for accessibility and printed evidence. The reader can therefore distinguish
+authoritative values, estimates, and warnings without relying on animation.
+
+MANZIL / Traffic Overview                                          Run RUN-021
+            Network map: congestion, signals, ambulance and route  Controller: Rule adaptive
+                                                                   Source: SUMO / current
+
+                                                                   Emergency EV-01
+                                                                   ETA: computed
+                                                                   Corridor: TRANSITION
+                                                                   Next: I-07
+
+                                                                   Warnings / event timeline
+                                                                   stale and fallback states
+                                                                   remain visible
+
+                                    Figure 4.3: G02 traffic-overview screen wireframe
+
+Emergency operation and experiment setup require different decisions, so they are separated in Figures
+4.5 and 4.6. The dispatch view shows validated endpoints, the current route version, its time-based
+cost, the reason for a revision, and the state of intersections in the bounded look-ahead corridor. It also
+permits a candidate route to be shown without implying that every alternative has been activated. The
+configuration view collects the network, demand, controller, seed, duration, incident, mission, and metric
+schema before a run begins. Its validation panel exposes unresolved identifiers, illegal phase plans,
+absent calibration, or checkpoint mismatch, and the start action remains unavailable until mandatory
+errors are resolved. The two wireframes therefore support auditability at different stages: one explains
+a live mission decision, while the other preserves the conditions under which that decision can later be
+compared. Neither view grants direct signal control, bypasses backend validation, or changes an active
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                                             42
+
+Intersection I-07 / Perception Detail                      Source: selected clip
+                Processed video preview (when available)   Model: version / checksum
+                                                           Freshness: current or stale
+track 17  track 23                                         Calibration: unavailable
+
+                                                          North: count –; queue proxy –
+                                                          East: count –; queue proxy –
+                                                          Illustrative fields, no live data
+
+          Time-series area: count, occupancy, queue proxy, processing throughput
+
+Figure 4.4: G03 perception and intersection-detail screen wireframe
+
+Emergency Dispatch and Route                              Map with route alternatives and current mission
+
+        Origin [select edge]
+        Destination [select edge]
+        Dispatch [button]
+
+    Selected cost: seconds
+    Route version: 3
+    Reroute threshold: config
+    Reason: sustained improvement
+
+  Corridor lifecycle
+  I-07 ACTIVE / I-08 REQUESTED
+
+Figure 4.5: G04 emergency-dispatch and route screen wireframe
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                              43
+
+run’s immutable configuration.                            Validation summary
+                                                          ✓IDs resolve
+               Experiment Configuration                   ✓phase plan legal
+                                                          ! video calibration absent
+                   Network and demand profile             ! RL checkpoint mismatch
+                   Controller and policy version
+                   Seed, warm-up and duration
+                   Incident and emergency mission
+                   Metric schema and sample interval
+
+                                                          Save draft             Start run
+
+       Figure 4.6: G01 experiment-configuration screen wireframe
+
+Comparative Analytics
+
+                       Run selector / comparability warning / metric definition
+
+      Distribution with mean and variability
+Illustrative layout; no measured values
+
+                                                          Configuration differences
+                                                          Seed coverage
+                                                          Failed runs
+                                                          Export data + manifest
+
+Fixed                  Rule                           RL
+
+       Figure 4.7: G05 comparative-analytics screen wireframe
+
+Figure 4.7 represents the final evidence-review workflow. Run selection is paired with a comparability
+warning and metric definition so that two visually adjacent bars are not assumed to represent matched
+experiments. The chart area is schematic and contains no claimed result; an implemented view would
+present the chosen distribution, central tendency, variability, and sample count from retained run records.
+The adjoining panel exposes configuration differences, seed coverage, failed runs, and export controls.
+This design responds directly to the methodology requirement that failed or incompatible runs must not
+disappear from a favorable summary. It also keeps measurement units and metric versions close to the
+visualization, reducing the risk that a screenshot is detached from its experimental meaning. Together,
+the five wireframes define the minimum information architecture for the prototype while leaving visual
+polish and specific chart libraries open to implementation. Exported graphics must retain the same
+metric and run identifiers.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  44

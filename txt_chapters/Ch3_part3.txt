@@ -1,0 +1,234 @@
+3.3 Literature Review Summary Table
+
+Table 3.1 consolidates the evidence by technical theme so that each study retains its evaluation setting
+and reported contribution. The reported-evidence column records what the authors evaluated rather
+than converting unlike metrics into a common ranking. The final column states both the boundary of
+that evidence and the specific decision it supports in Manzil. This organization is important because a
+detector benchmark, a traffic simulator, and a preemption experiment answer different questions even
+when each reports an improvement. The summary supports traceability rather than an artificial numerical
+comparison. It also exposes where Manzil needs its own evidence on video, network, demand, hardware,
+and recovery behavior; Chapter 9 reports that evidence for the synthetic grid and public video. Detailed
+qualifications remain in the preceding discussion, while the table provides a compact link from verified
+literature to requirements, methods, and design choices.
+
+                                          Table 3.1: Summary of literature review
+
+Study and year Method and setting  Reported evidence  Boundary and
+                                                      Manzil implication
+
+Redmon et al.,  Unified one-stage  Demonstrated real-time Benchmark
+2016 [7]        object detection   inference and a useful performance does
+                evaluated on       speed–accuracy tradeoff not establish
+                established image  for its reported models. roadside traffic
+                benchmarks.
+                                                                    accuracy; evaluate
+                                                                    the selected
+                                                                    checkpoint on
+                                                                    held-out traffic
+                                                                    sequences.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK                                                     20
+
+                     Table 3.1: Summary of literature review (continued)
+
+Study and year Method and setting Reported evidence                       Boundary and
+                                                                          Manzil implication
+
+Wojke et al., 2017   Online tracking          Reduced association         Appearance features
+[8]                  augmented with a         failures through longer     add cost and domain
+                     learned appearance       occlusions in the           dependence; use
+Zhang et al., 2022   metric, evaluated in     reported setting.           only if they improve
+[2]                  pedestrian tracking.                                 traffic-count
+                                              Reported competitive        stability.
+Yu et al., 2020 [9]  Two-stage association    tracking accuracy and       Benchmark
+                     retains lower-score      real-time throughput on     identities do not
+Wen et al., 2020     detections across        the stated hardware.        imply calibrated
+[4]                  several tracking                                     traffic measures;
+                     benchmarks.              Supplies detection,         compare end-to-end
+                                              tracking, and related       count and
+                     Large multi-task         driving-scene               queue-proxy error.
+                     driving dataset          annotations at              Vehicle-mounted
+                     spanning varied          substantial scale.          views differ from
+                     locations, weather, and                              fixed intersection
+                     time.                    Provides a closer           cameras; use for
+                                              roadside setting and a      initialization or
+                     Vehicle detection and    joint protocol for          stress testing, not
+                     tracking benchmark       detector and tracker        sole validation.
+                     using                    evaluation.                 Site geometry and
+                     traffic-surveillance                                 vehicle mix remain
+                     video.                                               domain-specific;
+                                                                          split by sequence
+                                                                          and disclose the
+                                                                          local-domain gap.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK                                         21
+
+      Table 3.1: Summary of literature review (continued)
+
+Study and year Method and setting Reported evidence         Boundary and
+                                                            Manzil implication
+
+Varaiya, 2013 [10] Max-pressure control Establishes a principled Requires valid
+
+      for signalized traffic          relationship between  upstream and
+
+      networks under stated movement pressure and downstream queues;
+
+      queueing assumptions. network control.                use as a transparent
+
+                                                            adaptive reference
+
+                                                            with safety
+
+                                                            constraints.
+
+Liang et al., 2019 Deep Q-learning    Demonstrates that     Topology and
+
+[11]  applied to traffic-light bounded signal actions demand transfer are
+
+      cycle control in                can be learned from   uncertain; train
+
+      simulation.                     traffic state in the tested separately and
+
+                                      configuration.        evaluate on held-out
+
+                                                            scenarios.
+
+Wei et al., 2019 Reinforcement learning Reported improvements Results depend on
+
+[12]  with pressure-informed over selected baselines flows and training
+
+      state and reward on             in the authors’ simulated design; adopt the
+
+      arterial networks.              networks.             pressure rationale,
+
+                                                            not the reported
+
+                                                            improvement as a
+
+                                                            target.
+
+Zheng et al., 2019 Phase-competition  Exploits structural   Needs specialized
+
+[13]  representation for              relationships among   phase encoding;
+
+      traffic-signal                  competing phases in its preserve legal phase
+
+      reinforcement learning. evaluations.                  structure before
+
+                                                            considering this
+
+                                                            added complexity.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK                                                     22
+
+                    Table 3.1: Summary of literature review (continued)
+
+Study and year Method and setting Reported evidence                      Boundary and
+                                                                         Manzil implication
+
+Wei et al., 2019    Graph-attention         Shows how                    Training and
+[14]                cooperation among
+                    intersections in        neighbouring signal          attribution are more
+Chu et al., 2020    simulated road
+[15]                networks.               information can support complex; keep the
+
+Zhang et al., 2019  Decentralized           coordinated decisions in first Manzil network
+[16]                multi-agent deep
+                    reinforcement learning  tested settings.             small and declare all
+Lopez et al., 2018  for larger traffic
+[17]                networks.                                            shared observations.
+
+                    High-throughput         Evaluates scalable           Non-stationarity and
+                    simulator designed for
+                    city-scale              coordination under           tuning cost threaten
+                    traffic-learning
+                    experiments.            partial local                reproducibility;
+
+                    Microscopic traffic     observations.                begin with a
+                    simulator with
+                    external-control                                     parameter-sharing
+                    support and network
+                    tooling.                                             policy and stable
+
+                                                                         baselines.
+
+                                            Demonstrates an              Migration would
+
+                                            alternative platform for conflict with the
+
+                                            large parallel               approved
+
+                                            experiments.                 SUMO-centered
+
+                                                                         scope; retain only as
+
+                                                                         a documented
+
+                                                                         alternative.
+
+                                            Documents the                Results inherit
+
+                                            simulator architecture network and
+
+                                            used for detailed traffic car-following
+
+                                            and control experiments. assumptions;
+
+                                                                         version every map,
+
+                                                                         demand file, and
+
+                                                                         simulator setting.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK                                                      23
+
+                     Table 3.1: Summary of literature review (continued)
+
+Study and year Method and setting Reported evidence                       Boundary and
+                                                                          Manzil implication
+
+Dijkstra, 1959       Minimum-cost search     Provides a reference         It is not dynamic
+[18]                 on graphs with          optimality guarantee for     unless costs are
+                     nonnegative edge        the defined cost             refreshed; use as the
+Hart et al., 1968    weights.                snapshot.                    correctness baseline
+[1]                                                                       for versioned routes.
+                     Heuristic               Reduces unnecessary          An inadmissible
+Humagain et al.,     minimum-cost search     exploration while            heuristic loses the
+2020 [19]            using an admissible     retaining optimality         guarantee; use
+                     lower bound.            under the stated             free-flow time as a
+Qin and Khan,                                conditions.                  lower bound or
+2012 [20]            Systematic review of                                 retain Dijkstra.
+                     emergency routing and   Identifies recurring         A review validates
+Louati et al., 2018  traffic-signal          objectives, data             no single
+[21]                 preemption research.    requirements, safety         implementation;
+                                             concerns, and limits in      measure ambulance
+                     Simulation study of     real-world validation.       benefit and
+                     transition into                                      ordinary-traffic
+                     preemption and          Shows that entry, queue      disruption together.
+                     recovery to normal      effects, and recovery        Reported timings
+                     timing.                 policies affect the          are not certified for
+                                             outcome of emergency         Manzil; implement
+                     Queue-aware             intervention.                an explicit guarded
+                     multi-agent method for                               lifecycle and
+                     emergency crossing at   Evaluates priority           evaluate recovery.
+                     signalized              decisions that account       Its multi-vehicle
+                     intersections.          for standing traffic         scope exceeds the
+                                             rather than green state      core project; retain
+                                             alone.                       queue awareness
+                                                                          and downstream-
+                                                                          capacity checks.
+CHAPTER 3. LITERATURE REVIEW / RELATED WORK  24
+
+3.4 Conclusion
+
+The review supports a staged technical strategy. Fixed-time and pressure-inspired controllers must op-
+erate correctly before comparison with a learned controller, and measurement definitions must be fixed
+before an optimization result is interpreted. Video experiments should assess the complete observation
+chain rather than quote detector accuracy as a traffic-management result. Simulation experiments should
+use matched seeds, identical safety constraints, and held-out scenarios so controller differences are not
+confused with different demand. Emergency evaluation must separate route selection from signal prior-
+ity because combining both changes would obscure the source of any improvement. The cited literature
+justifies the selected building blocks but does not establish their performance for Manzil’s network,
+cameras, or computing resources. It also requires results to remain bounded to the tested viewpoints,
+traffic demand, simulator settings, and route conditions. Chapter 4 converts these findings into traceable
+requirements, while Chapter 5 defines the measurements and controlled comparisons needed to address
+the evaluation objectives without claiming field deployment or certified safety evidence. The FYP-I im-
+plementation followed this strategy, and Chapter 9 reports where its results agree or disagree with the
+expectations drawn from the literature.

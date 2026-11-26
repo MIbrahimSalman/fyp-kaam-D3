@@ -1,0 +1,406 @@
+      Table 7.13: TC-08: A road closure triggers a new route and cancels obsolete priority
+
+                        Routing mission and corridor coordinator
+
+Test Case ID:   TC-08                          Test case Version:              1.0
+
+Test Date:      15-11-2026                     Use Case Refer- UC-07; FR-11,
+
+                                               ence(s):                        FR-14
+
+Revision History: None
+
+Objective:      Verify that closing a road on the ambulance’s route produces a new route version
+
+                that avoids it, and that corridor requests on the old route are cancelled.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / Routing mission and corridor coordinator
+
+ule:
+
+Environment:    Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:    Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:  Medium demand; ambulance dispatched with the corridor on.
+
+Step No.        Execution description          Procedure result
+
+1               Run the mission without a closure to Route 1 recorded. Passed
+
+                obtain route 1.
+
+2               Repeat with the same seed and close The mission arrives; the first revision has
+
+                the fourth road of route 1 shortly af- trigger “closure”; the closed road is not
+
+                ter dispatch.                  driven; versions are numbered 1, 2, . . . ;
+
+                                               a corridor request is cancelled with reason
+
+                                               route_v2. Passed
+
+Comments: No safety violation or teleport. Test: test_emergency.py::test_closure_triggers_
+
+new_route_version_and_cancels_priority.
+
+                                       Passed
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                   107
+
+                Table 7.14: TC-09: The corridor follows its lifecycle and releases safely
+
+                            Corridor coordinator
+
+Test Case ID:   TC-09                                Test case Version:       1.0
+
+Test Date:      15-11-2026                           Use Case Refer- UC-06; FR-12,
+
+                                                     ence(s):                 FR-13
+
+Revision History: None
+
+Objective:      Verify that each corridor junction passes through the states of Algorithm 2 in order
+
+                and returns to normal control, also when priority times out.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / Corridor coordinator
+
+ule:
+
+Environment:    Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:    Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:  Ambulance mission with the corridor on.
+
+Step No.        Execution description                Procedure result
+
+1               Run a mission and collect the corri- States in the order REQUESTED,
+
+                dor events of every junction.        SAFE_TRANSITION,                      AC-
+
+                                                     TIVE_PRIORITY, PASSAGE, RECOV-
+
+                                                     ERY, IDLE; normal requests held while the
+
+                                                     corridor owns a junction. Passed
+
+2               Repeat with a maximum priority of Timeouts occur; the ambulance still arrives.
+
+                only 2 s to force timeouts.          Passed
+
+Comments: Zero safety violations. Tests: test_emergency.py::test_corridor_lifecycle_
+
+order_and_safety, test_emergency.py::test_priority_timeout_releases_safely.
+
+                                             Passed
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                        108
+
+            Table 7.15: TC-10: The 5 s corridor minimum applies only to the corridor
+
+                  Safety filter, safety monitor, and ambulance driver
+
+Test Case ID:     TC-10                               Test case Version:        1.0
+
+Test Date:        15-11-2026                          Use Case Refer- UC-06; FR-08
+
+                                                      ence(s):
+
+Revision History: None
+
+Objective:        Verify that only a corridor request may end a green after 5 s, that clearance is never
+
+                  shortened, and that the ambulance never crosses a red light.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / Safety filter, safety monitor, and ambulance driver
+
+ule:
+
+Environment:      Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:      Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:    Corridor minimum green set to 5 s.
+
+Step No.          Execution description               Procedure result
+
+1                 Submit a normal request after 6 s of Held. Passed
+
+                  green.
+
+2                 Submit corridor requests after 4 s The 4 s request is held; the 6 s request
+
+                  and after 6 s of green.             switches with 3 s yellow and 2 s all-red.
+
+                                                      Passed
+
+3                 Show the monitor a 6 s green under Both flagged as violations. Passed
+
+                  normal ownership and a 4 s green
+
+                  under corridor ownership.
+
+4                 Run a mission without the corridor At least four stop lines crossed, none on red.
+
+                  and record the signal at every stop Passed
+
+                  line the ambulance crosses.
+
+Comments: Tests: test_corridor_v2.py::test_truncation_only_for_the_corridor_and_
+
+never_clearance,        test_corridor_v2.py::test_monitor_flags_truncation_without_
+
+corridor_ownership, test_corridor_v2.py::test_plain_ambulance_never_crosses_on_
+
+red.
+
+                                             Passed
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                   109
+
+      Table 7.16: TC-11: Runs are reproducible and incompatible runs are not compared
+
+                Experiment runner, batch, and comparison tools
+
+Test Case ID:   TC-11                              Test case Version:           1.0
+
+Test Date:      15-11-2026                         Use Case Refer- UC-08; FR-17,
+
+                                                   ence(s):                     FR-18
+
+Revision History: None
+
+Objective:      Verify that the same configuration gives the same metrics and that the comparison
+
+                tool refuses runs with different settings.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / Experiment runner, batch, and comparison tools
+
+ule:
+
+Environment:    Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:    Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:  Short medium-demand runs.
+
+Step No.        Execution description              Procedure result
+
+1               Run the same configuration twice, Identical metrics. Passed
+
+                and once more with the TraCI back
+
+                end.
+
+2               Run a batch in parallel and the same Identical metrics. Passed
+
+                run serially.
+
+3               Change the measurement length of Refused as incompatible. Passed
+
+                one row and request a comparison.
+
+Comments: Tests: test_runner.py::test_same_seed_same_metrics, test_runner.py::test_
+
+traci_backend_gives_the_same_metrics, test_batch_compare.py::test_parallel_batch_
+
+matches_a_serial_run, test_batch_compare.py::test_incompatible_runs_refused.
+
+                                       Passed
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                      110
+
+                Table 7.17: TC-12: Vehicles are counted once at the counting line
+
+                                  Perception counting
+
+Test Case ID:   TC-12                               Test case Version:             1.0
+
+Test Date:      15-11-2026                          Use Case Refer- UC-03; FR-04,
+
+                                                    ence(s):                       FR-05
+
+Revision History: None
+
+Objective:      Verify the counting rule used for the count-error results.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / Perception counting
+
+ule:
+
+Environment:    Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:    Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:  Counting line defined on a synthetic sequence of tracked boxes.
+
+Step No.        Execution description               Procedure result
+
+1               Move a tracked box down across the Exactly one “down” event at the first cross-
+
+                line with jitter back over it.      ing. Passed
+
+2               Move a box back and forth across No event. Passed
+
+                the line inside an ignored region.
+
+3               Track stopped and moving boxes for Only stopped vehicles are counted. Passed
+
+                the queue proxy.
+
+Comments: Tests: test_counting.py::test_vehicle_moving_down_is_counted_once,
+
+test_counting.py::test_crossing_in_ignored_region_dropped_and_not_recounted,
+
+test_counting.py::test_queue_estimator_stopped_vs_moving.
+
+                                       Passed
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                111
+
+                Table 7.18: TC-13: Dashboard session from dispatch to rerouting
+
+                            FastAPI service and live session
+
+Test Case ID:   TC-13                                Test case Version:          1.0
+
+Test Date:      15-11-2026                           Use Case Refer- UC-02, UC-05,
+
+                                                     ence(s):                    UC-07; FR-02,
+
+                                                                                 FR-15
+
+Revision History: None
+
+Objective:      Verify the operator workflow through the API used by the dashboard.
+
+Product/Ver/ Mod- Manzil FYP-I prototype / FastAPI service and live session
+
+ule:
+
+Environment:    Team laptop, Windows 11, Python 3.10, SUMO 1.28.0, pytest
+
+Assumptions:    Committed 3×3 grid and fixed seeds unless stated otherwise
+
+Pre-Requisite:  API started; no run active.
+
+Step No.        Execution description                Procedure result
+
+1               Start a medium-demand run and Run starts. Passed
+
+                slow it to three times real time.
+
+2               Dispatch an ambulance from First accepted; second refused (one mission
+
+                left0A0 to C2top2 with the corridor at a time). Passed
+
+                on, then send a second dispatch.
+
+3               Close the fourth road of the route, First accepted; the other two refused.
+
+                close it again, and close a road that Passed
+
+                does not exist.
+
+4               Wait for a new route version.        Route version 2 avoids the closed road.
+
+                                                     Passed
+
+Comments: Test: test_api.py::test_dispatch_close_road_reroute_and_corridor.
+
+                                             Passed
+
+7.3 Test Metrics
+
+Table 7.19 summarizes the result of the last full test run on the team laptop, and Table 7.20 links each
+functional requirement of Table 4.1 to its implementation status at the end of FYP-I and to the test cases
+that verify it. A requirement is marked implemented only when code and passing tests exist; partial and
+planned requirements name the missing part, which is carried into the FYP-II plan in Chapter 10.
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                          112
+
+Metric                        Table 7.19: Test metrics
+Number of test cases
+                             Value
+Number of test cases passed
+Number of test cases failed  13 documented test cases (TC-01 to TC-13), executed by 147
+Test case defect density     automated tests in 17 files
+Test case effectiveness      13 test cases; 147 automated tests
+                             0 (no automated test failed or was skipped)
+Traceability matrix          0 percent (0 failed × 100 / 13 executed)
+                             Not computed: defects found during development were fixed
+                             as they appeared and each received a regression test, but they
+                             were not logged per test case
+                             Table 7.20; 17 of 20 functional requirements are covered by a
+                             documented test case
+
+       Table 7.20: Requirement traceability and FYP-I status
+
+ID     Requirement (short)                Status                     Test cases
+
+FR-01  Validate scenario configuration    Implemented                TC-01
+FR-02  Start, pause, resume, stop a run
+                                          Partial: start, stop, and speed; TC-13
+FR-03  Adapter is sole owner of SUMO
+FR-04  Process recorded video             no pause
+
+FR-05  Aggregate observations             Implemented                TC-02
+
+FR-06  Select the controller              Partial: offline batch job on TC-12
+FR-07  Record every signal action
+FR-08  Minimum green and clearance        Kaggle
+
+FR-09  Validate ambulance endpoints       Partial: per-sequence counts TC-12
+FR-10  Time-based route
+FR-11  Reroute on closure or improvement  and per-frame queue proxy
+FR-12  Bounded corridor look-ahead
+FR-13  Passage, cancellation, recovery    Implemented                TC-13
+FR-14  Cancel obsolete priority
+FR-15  Dashboard state display            Implemented                TC-03
+FR-16  Visible stale and fallback states
+                                          Implemented; 5 s minimum TC-03,
+
+                                          for corridor requests      TC-04,
+
+                                                                     TC-05, TC-10
+
+                                          Implemented                TC-07
+
+                                          Implemented                TC-06
+
+                                          Implemented                TC-08
+
+                                          Implemented                TC-09
+
+                                          Implemented                TC-09
+
+                                          Implemented                TC-08
+
+                                          Partial: simulation source only TC-13
+
+                                          Planned for FYP-II         –
+CHAPTER 7. IMPLEMENTATION AND TEST CASES                                                 113
+
+       Table 7.20: Requirement traceability and FYP-I status (continued)
+
+ID     Requirement (short)                 Status                            Test cases
+
+FR-17  Record configuration and events     Implemented                       TC-11
+FR-18  Compatible comparisons only         Implemented                       TC-11
+FR-19  Export run data                     Partial: JSON and CSV run         –
+                                           files; no export command
+FR-20 Fallback for the learned controller  Partial: holds the current legal  –
+                                           phase
+
+Thirteen requirements are implemented, six are partial, and one is planned. FR-08 is met for every
+normal controller; the only exception is the shortened 5 s minimum for corridor requests described in
+the corridor section, which the safety monitor checks in every run. For FR-20 the implemented fallback
+keeps the current legal phase and counts the event instead of switching to fixed-time control. This is
+simpler but still safe, because the safety filter controls every transition.
+
+7.4 Conclusion
+
+The FYP-I implementation turns the design of Chapter 6 into a working prototype: a reproducible
+SUMO grid with seeded demand, a single simulation adapter, a safety filter that every controller must
+pass through, three signal controllers including a trained DQN, time-based routing with closure-triggered
+rerouting, a moving green corridor, a fine-tuned detection, tracking, and counting pipeline, and a live
+dashboard. The implementation also uncovered problems that a demonstration alone would have hidden,
+namely a misleading travel-time metric, a starvation case that led to the maximum-red guard, and the
+corridor’s route-index defect, and each was fixed and covered by a test. All 147 automated tests pass.
+Chapter 8 explains how to operate the prototype, and Chapter 9 reports the experiments run with it.

@@ -1,0 +1,149 @@
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY                                       51
+
+Chapter 5 Proposed Approach and Methodology
+
+This chapter defines how Manzil is constructed and evaluated so that its objectives can be assessed
+with controlled evidence rather than a favorable demonstration run. The method begins by freezing
+definitions, exclusions, baselines, and data partitions before the final comparison. It then validates the
+network, observations, controllers, routing, and corridor lifecycle in stages, because a result from an
+integrated run is not interpretable when an underlying measurement or safety transition is still uncertain.
+Figure 5.1 summarizes this sequence from preparation to reporting. Each stage produces an artifact or
+acceptance check that is retained with the experiment manifest. The protocol also separates detector
+evaluation from signal-control evaluation: recorded video supplies annotated evidence for perception,
+while SUMO supplies controlled vehicle and signal state for the controller, route, and emergency exper-
+iments. This separation prevents estimated video quantities from being passed off as exact network state
+and allows an optional observation-noise study only after both baselines are stable.
+
+5.1 Overall Research Workflow
+
+Freeze evaluation objectives, metric definitions, baselines, and exclusions
+
+Prepare versioned SUMO network/demand and source-separated video data
+
+Validate simulator, measurements, fixed controller, and rule-adaptive controller
+
+Evaluate detector/tracker; train and tune one RL controller on training scenarios
+
+Validate routing, rerouting, corridor lifecycle, cancellation, and recovery
+
+Run matched held-out scenarios with repeated seeds and retain failures
+
+                       Aggregate variability, ablations, validity threats, artifacts, and conclusions
+
+                                      Figure 5.1: Research and evaluation workflow
+
+The workflow in Figure 5.1 is ordered to prevent later components from masking earlier faults. Eval-
+uation objectives and metric definitions are fixed before data preparation; the network and demand are
+validated before controllers are compared; and ordinary traffic control is established before emergency
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY  52
+
+routing and priority are enabled. Two input modes are retained throughout this process. In video mode,
+annotations provide the reference for perception metrics, and no claim is made that a selected clip deter-
+mines the full state of the simulated network. In simulation mode, SUMO supplies lane, vehicle, signal,
+and route state for controlled experiments. Both modes use the same typed traffic-state concepts but
+retain a source field, units, validity interval, and confidence where applicable. A later noise experiment
+may inject measured perception error into simulation observations, but it will be included only after the
+baseline protocol is complete and its parameters are fixed in advance. The final stage reports variability,
+failures, ablations, and validity limits alongside successful runs.
+
+5.2 Network and Scenario Preparation
+
+Every controller, routing, and corridor result depends on the road network and the traffic demand placed
+on it, so both are prepared and validated before any comparison. This section describes how the network
+is obtained and checked, and how demand profiles and incidents are generated so that runs can be
+repeated exactly.
+
+5.2.1 Network Provenance and Validation
+
+In FYP-II, a selected, manageable Lahore road area will be exported from OpenStreetMap under its
+applicable attribution and license conditions [25]. The exact bounding box, extraction date, source file
+checksum, and conversion command will be stored so that a later change in the public map cannot
+silently alter an experiment. SUMO’s import toolchain will convert the graph, after which NetEdit in-
+spection will verify lane counts, legal turns, junction types, traffic-light programs, pedestrian-only edges,
+disconnected components, and ambulance-accessible routes. Automated checks will then attempt repre-
+sentative routes, enumerate signal phases, and reject movements that conflict with the intended vehicle
+classes. The initial planning range is approximately 10–20 signalized intersections, but this is not a
+confirmed network fact or a requirement to retain a defective import. A smaller validated extract is
+preferable to a larger inaccurate one because route continuity and lawful signal control are prerequisites
+for every later result. If the chosen map cannot be stabilized within the schedule, a documented syn-
+thetic multi-intersection grid becomes the fallback, and all results are identified as synthetic rather than
+generalized to Lahore roads.
+
+The prototype uses this synthetic grid as a controlled test track, and the Lahore extract follows in FYP-II.
+It is a 3×3 grid generated with SUMO’s network generator, with 200 m blocks, two lanes per direction,
+50 km/h, and nine signalized junctions. All code reads junctions, phases, lanes, and connections from
+the network file, so moving to Lahore requires map cleanup rather than code changes.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY                                            53
+
+5.2.2 Demand and Incidents
+
+Demand files define light, medium, and heavy conditions together with an uneven-approach case that
+can expose starvation. Vehicle insertion uses explicit random seeds, and a declared warm-up interval
+allows traffic to populate the network before measurement begins. Incident scenarios close an edge,
+reduce lane capacity, or introduce a controlled obstruction at a fixed simulation time. A failed insertion
+caused by a full lane is retained as an outcome rather than retried until the run appears favorable. The
+same requested demand and seed are replayed across controllers where SUMO semantics permit. When
+controller behavior changes route choice or insertion feasibility, the manifest distinguishes the original
+demand request from actual departures so that throughput is not interpreted without its denominator.
+Scenario families are separated into development, tuning, and held-out evaluation sets before final runs.
+Origin-destination pairs, incident timing, and emergency dispatch time are also matched within each
+comparison. These controls make differences attributable to the selected policy while preserving con-
+gestion effects that legitimately arise from that policy. In the implementation, demand is generated by
+a seeded Poisson process per entry road at 200, 400, and 600 vehicles per hour for light, medium, and
+heavy demand, and 800 north–south against 100 east–west for the uneven profile.
+
+5.3 Video Perception Pipeline
+
+   Licensed        Pretrained        Multi-object  Region/lane               Interval
+video sequence  vehicle detector     association   assignment              aggregation
+
+                Held-out evaluation                 Counts, speed proxy,
+                 and error analysis                occupancy, queue proxy
+
+                Figure 5.2: Traffic-video perception pipeline
+
+Figure 5.2 presents the complete video-observation chain rather than depicting detection as an isolated
+result. The detector produces a class, confidence, and image-space box; the tracker associates obser-
+vations through time; and a bottom-center or calibrated road-contact point maps each valid track to a
+polygonal lane or approach region. Directed line-crossing or region-entry rules use track history to avoid
+counting the same vehicle in every frame. Interval aggregation then derives counts, image occupancy, a
+queue proxy, and a speed proxy with source time and confidence. Held-out annotations feed the error-
+analysis path and are never used to tune the final evaluation sequence. A speed in physical units requires
+camera calibration or a defensible known scale. Without that evidence, the system reports pixel dis-
+placement or a categorical slow or stationary state rather than kilometres per hour. The figure therefore
+emphasizes where uncertainty enters the pipeline and why an apparently stable box is not yet a validated
+traffic measure.
+CHAPTER 5. PROPOSED APPROACH AND METHODOLOGY                         54
+
+For a lane region l over interval k, a simple occupancy proxy is
+
+                    (︂(︂             )︂ )︂
+
+1                A  ⋃︁         Bi,t  ∩ Rl
+
+∑ Ol,k = Tk t∈k        i∈Vl,t                                     ,  (5.1)
+
+                          A(Rl )
+
+where Bi,t is a tracked box, Rl is the image region, and Tk is the number of sampled frames. The union
+prevents overlapping boxes from being counted twice and keeps the ratio within [0, 1]. This is image
+occupancy, not road density. A queue proxy counts stable tracks inside a defined upstream region whose
+image-motion or calibrated speed is below a threshold for a minimum persistence time.
+
+The detector is initialized from a documented pretrained checkpoint, consistent with the practical mo-
+tivation of YOLO-family detection [7]. ByteTrack is used as the tracker because its association of
+lower-confidence boxes can reduce fragmentation under temporary occlusion [2]. DeepSORT remains
+an alternative if appearance information is needed in local scenes [8]. Detector and tracker settings are
+fixed before held-out evaluation; FYP-I uses ByteTrack’s default thresholds. Selection considers inter-
+val count error, track fragmentation when identity is required, queue-proxy error, processing throughput,
+and failure by scene condition; benchmark reputation alone is insufficient. Equation (5.1) defines image
+occupancy when calibration is unavailable, using the fraction of a declared region covered by tracked
+boxes across sampled frames. Because perspective and occlusion affect that fraction, it is reported as
+a proxy with its region geometry and sampling interval, not renamed as physical road density. This
+evaluation keeps the claimed output aligned with what the video can actually support.
+
+The implemented pipeline fine-tunes YOLO11s on UA-DETRAC frames together with COCO images
+of motorcycles, tracks with ByteTrack, and counts a vehicle once when its box centre crosses a line at
+60 percent of the image height. True counts are produced by passing the annotated tracks through the
+same counter, so the count error measures detection and tracking only. Occupancy and speed proxies
+are not computed in FYP-I.

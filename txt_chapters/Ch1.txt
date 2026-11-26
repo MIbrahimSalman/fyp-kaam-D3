@@ -3,7 +3,7 @@ CHAPTER 1. INTRODUCTION  1
 Chapter 1 Introduction
 
 This chapter introduces the Deliverable III report for Manzil, an intelligent traffic and emergency-routing
-prototype developed as a FAST­NUCES Final Year Project. It states what the report is for, who is
+prototype developed as a FASTâ€“NUCES Final Year Project. It states what the report is for, who is
 expected to read it, and the terms used throughout the later chapters. It also separates work that has been
 implemented and measured during FYP-I from work that remains planned for FYP-II, and the report
 keeps that boundary clear.
@@ -17,14 +17,14 @@ with a single simulation adapter and safety filter, fixed-time, pressure-based a
 sharing Double DQN signal controllers, time-based ambulance routing with closure-triggered rerouting,
 a moving green corridor, a YOLO-based vehicle detection, tracking, and counting pipeline trained on
 Kaggle, and a first web dashboard. All controller, routing, and corridor results come from repeated,
-seeded SUMO runs on a synthetic 3×3 signalized grid, and all perception results come from public
+seeded SUMO runs on a synthetic 3Ã—3 signalized grid, and all perception results come from public
 UA-DETRAC and COCO data. The report therefore claims measured simulation and video evidence,
 not field performance or deployment readiness. Any performance statement in this report is tied to a
 recorded configuration, matched baseline, stated metric, and repeatable set of runs.
 
 1.2 Intended Audience
 
-The primary audience is the FAST­NUCES FYP supervisor and evaluation panel. They require enough
+The primary audience is the FASTâ€“NUCES FYP supervisor and evaluation panel. They require enough
 detail to judge the relevance of the evaluation objectives, the implemented software, and the validity of
 the experiments. The report is also an engineering reference for the student implementation team. Team
 members should be able to derive component responsibilities, interface fields, scenario configurations,

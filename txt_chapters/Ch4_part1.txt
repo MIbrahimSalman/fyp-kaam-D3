@@ -1,0 +1,111 @@
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS  25
+
+Chapter 4 Software Requirement Specifications
+
+This chapter translates the reviewed problem and evidence into a specification for the Manzil research
+prototype. The requirements describe observable behavior rather than implying that every item has al-
+ready been implemented. Where the available repository evidence does not support a measured thresh-
+old, the text states a design target or requires profiling before a value is fixed. The specification gives
+particular attention to reproducibility, legal signal transitions, observation freshness, route-version con-
+sistency, and visible failure handling because these properties determine whether later experiments can
+be interpreted. It also separates the video-perception workflow from SUMO-based control experiments
+so that estimated observations are not silently presented as simulator ground truth. Account manage-
+ment, public dispatch integration, traffic enforcement, clinical response prediction, and physical signal
+deployment remain outside the approved scope. The resulting requirements provide a contract for the
+architecture in Chapter 6 and a traceable basis for the evaluation procedures in Chapter 5.
+
+4.1 List of Features
+
+The prototype is organized into six feature groups that follow the operator’s experimental workflow
+from configuration to evidence export. The grouping prevents a user-interface screen or implementation
+library from being mistaken for a requirement and clarifies which service owns each outcome. It also
+shows that emergency operation is not an isolated routing feature: a valid mission depends on scenario
+state, traffic observations, signal control, monitoring, and durable records. The following statements
+summarize those groups before the individual functional requirements define testable behavior.
+
+   1. The operator can select a network, demand profile, controller, seed, incident, duration, and op-
+       tional emergency mission before a run begins.
+
+   2. The perception workflow can process licensed recorded video into detections, tracks, road-region
+       observations, and timestamped aggregate measures with confidence information.
+
+   3. The simulation workflow advances SUMO through one owner, reads traffic state, applies fixed or
+       adaptive requests, and preserves legal phase transitions.
+
+   4. The emergency workflow validates endpoints, computes a dynamic path, applies stable rerouting,
+       activates bounded moving priority, detects passage, and recovers normal control.
+
+   5. The monitoring interface presents map state, signals, traffic indicators, ambulance route, corridor
+       state, warnings, and the current data-source mode.
+
+   6. The experiment service retains immutable configuration, events, metrics, software versions, seeds,
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                              26
+
+and termination state for comparison and export.
+
+4.2 Functional Requirements
+
+Table 4.1 defines the mandatory system behavior using stable identifiers that are reused in the traceabil-
+ity matrix of Table 7.20. The requirements distinguish a requested signal action from the action actually
+applied, require route and observation versions to be retained, and make fallback behavior part of the
+specification rather than an informal implementation detail. Several entries use the word “shall” because
+they are acceptance conditions for the prototype. Together, FR-01 through FR-08 cover experiment con-
+figuration and normal control, FR-09 through FR-14 define the emergency-route and corridor lifecycle,
+and FR-15 through FR-20 cover monitoring, evidence, comparison, export, and controller failure. This
+arrangement lets tests target a coherent workflow while preserving individual identifiers for defect track-
+ing. A requirement is satisfied only when its normal and failure paths are demonstrated with retained
+evidence. For example, returning a path is insufficient for FR-10 if the cost snapshot and graph-validity
+conditions are not also recorded.
+
+                                             Table 4.1: Functional requirements
+
+ID     Requirement
+FR-01
+FR-02  The system shall validate a scenario configuration before starting and shall reject
+FR-03  missing network, controller, seed, duration, or demand inputs.
+FR-04  The system shall start, pause, resume, and stop one controlled SUMO run while
+FR-05  preserving an unambiguous run state.
+FR-06  The simulation adapter shall be the sole owner of SUMO stepping and signal
+FR-07  actuation.
+FR-08  The perception worker shall process a selected recorded video and emit times-
+       tamped detections, tracks, source metadata, and processing status.
+       The observation service shall aggregate valid vehicle observations into defined
+       road, lane, or approach intervals without silently mixing sources.
+       The operator shall be able to select fixed-time, rule-adaptive, or the configured
+       RL controller before a run.
+       Every signal action shall identify its intersection, requested and applied phase,
+       effective simulation step, controller, and reason.
+       The system shall enforce minimum green and configured yellow/all-red clearance
+       before incompatible movements receive right of way.
+CHAPTER 4. SOFTWARE REQUIREMENT SPECIFICATIONS                                               27
+
+ID                   Table 4.1: Functional requirements (continued)
+FR-09
+FR-10  Requirement
+FR-11
+FR-12  The emergency service shall validate ambulance origin and destination and return
+FR-13  a clear no-route response if either is invalid or disconnected.
+FR-14  The route service shall compute a valid remaining path using nonnegative time-
+FR-15  based edge costs and shall record the cost snapshot.
+       The rerouting service shall re-evaluate the remaining path after a closure, invali-
+FR-16  dated edge, or sustained cost improvement above the configured threshold.
+FR-17  The corridor coordinator shall activate priority only for a bounded look-ahead set
+FR-18  of intersections on the current ambulance route.
+       The corridor coordinator shall detect passage or cancellation and restore the af-
+FR-19  fected intersection to a safe normal-control state.
+FR-20  A route revision shall cancel priority requests that no longer belong to the remain-
+       ing path before activating new ones.
+       The dashboard shall display the current source mode, simulation status, con-
+       troller, signal state, traffic indicators, ambulance position, route, and corridor
+       state.
+       The dashboard shall present stale, invalid, disconnected, and fallback states visi-
+       bly rather than continuing with apparently current data.
+       The system shall record configuration, seed, component versions, periodic met-
+       rics, route revisions, signal events, failures, and termination reason for each run.
+       The comparison service shall align selected runs by metric definition and warn
+       when network, demand, duration, warm-up, or measurement versions are incom-
+       patible.
+       The operator shall be able to export run configuration and metrics in a docu-
+       mented machine-readable format.
+       On loss of the learned controller or invalid action, the control service shall fall
+       back to a configured safe baseline and record the transition.
