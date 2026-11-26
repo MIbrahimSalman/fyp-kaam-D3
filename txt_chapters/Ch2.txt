@@ -1,0 +1,259 @@
+CHAPTER 2. PROJECT VISION  4
+
+Chapter 2 Project Vision
+
+This chapter converts the broad motivation for Manzil into a bounded project vision that can guide both
+implementation and evaluation. It identifies the decisions that the prototype is expected to make, the
+evidence needed to judge those decisions, and the conditions under which any conclusion must remain
+limited to simulation and selected recorded video. The chapter begins with the relationship between
+normal traffic control and emergency movement, then states the problem in terms that can be investi-
+gated within an undergraduate project. The evaluation plan separates perception quality, normal signal
+control, dynamic routing, corridor operation, and robustness so that an improvement in one area is not
+mistaken for success in every area. The objectives and scope retain the approved proposal while exclud-
+ing forecasting, enforcement, citywide deployment, and direct operation of public signals. Constraints
+related to data, map quality, computing resources, and the simulation-to-reality gap are treated as design
+inputs rather than footnotes. Stakeholder expectations then clarify who can use the prototype and what
+evidence would constitute a credible project outcome.
+
+2.1 Problem Domain Overview
+
+Traffic-signal control allocates limited green time among movements that cannot proceed together. Fixed
+plans are understandable, auditable, and easy to reproduce, but they cannot respond to every short-term
+difference in approach demand. Adaptive control can use measured queues and waiting time, yet a
+controller that improves the network average may still be unacceptable if it repeatedly postpones a
+lightly loaded approach. Coordination adds another layer because an action at one intersection changes
+arrivals and queues downstream. Emergency routing operates on the same network with a stricter travel-
+time objective. A route is useful only when its cost reflects current link travel time, queue discharge,
+signal delay, and any closure that makes a movement unavailable. Signal priority may reduce ambulance
+stops, but an unsafe transition or poorly managed recovery can transfer excessive delay to ordinary
+traffic. Manzil therefore treats normal control, route selection, priority activation, passage detection, and
+recovery as connected decisions. It retains separate measures for the ambulance and other vehicles so
+that emergency benefit cannot conceal network disruption.
+
+Figure 2.1 presents the central scope decision that separates the two evidence paths while allowing them
+to use the same traffic-state contract. Recorded traffic video enters the perception path, where a detec-
+tor, tracker, and region-assignment process produce observable measures that can be checked against
+annotations. SUMO enters the controlled-experiment path and exposes exact simulated vehicle, lane,
+route, and signal state for repeatable controller and routing comparisons. The shared contract records
+the source mode, identifier, timestamp, unit, confidence, and validity of every observation. This design
+CHAPTER 2. PROJECT VISION                                                     5
+
+                Recorded traffic video  SUMO scenario state
+
+                Detection, tracking      Exact simulated
+                  and observation       network measures
+
+                              Traffic-state contract
+                           source, time, units, validity
+
+Signal-control             Dashboard and experiment records  Emergency route
+ comparison                                                    and corridor
+
+Figure 2.1: Manzil project context and the separation of evidence paths
+
+permits the dashboard and downstream services to consume a consistent structure without implying that
+the sources have equal certainty. In particular, a count or queue proxy estimated from an arbitrary cam-
+era view cannot reconstruct every lane in the selected SUMO network unless camera calibration and
+lane mapping have been completed. The figure is relevant because it prevents a common scope error:
+presenting separate perception and simulation demonstrations as though they formed a validated real-
+time city model. Manzil evaluates them separately; an explicitly controlled integration study is part of
+the FYP-II plan.
+
+2.2 Problem Statement
+
+Within the selected prototype setting, there is no established implementation that allows the Manzil team
+to compare signal-control strategies and isolate the contributions of emergency routing and coordinated
+priority under one reproducible protocol. The project problem is therefore to design a system that
+observes or simulates traffic state, makes bounded control and routing decisions, and records why each
+decision was requested and what was actually applied. The system must support matched comparisons
+between fixed-time, rule-based adaptive, and reinforcement-learning control under the same demand
+conditions. It must also compare an unassisted ambulance, congestion-aware routing, and routing with a
+moving corridor without changing unrelated configuration between runs. This requires more than joining
+familiar technologies. Measurements must have defined units and freshness, routes must remain legal
+from the current vehicle position, signal changes must respect phase safety, and failed or infeasible runs
+must remain visible. The resulting evidence will describe performance in declared simulation and video
+conditions. It will not establish that the same effect would occur on public roads without calibration,
+controller integration, safety engineering, authority approval, and field validation.
+CHAPTER 2. PROJECT VISION  6
+
+2.3 Problem Elaboration
+
+Five linked sub-problems determine whether the prototype can meet its evaluation objectives. First,
+frame-level vehicle detections must be associated over time and assigned to meaningful road regions be-
+fore they can support counts, trajectories, or queue-related observations. Second, normal signal control
+requires a correctly configured fixed baseline and a transparent adaptive baseline before reinforcement
+learning can be judged fairly. Third, route costs must use compatible units and avoid adding separate
+congestion penalties when observed travel time already contains the same delay. Fourth, corridor con-
+trol must anticipate the ambulance, clear conflicting movements, limit the duration of priority, detect
+passage, and restore normal service without holding the entire route green. Fifth, experiments must use
+matched demand, seeds, warm-up, duration, and metric definitions. These issues also interact across
+component boundaries. A stale observation can change an edge cost, a route revision can invalidate
+pending priority, and a prolonged priority phase can improve ambulance time while harming ordinary
+traffic. The vision consequently requires explicit freshness, single ownership of simulation time and
+actuation, safe fallback, route versioning, and auditable event order.
+
+2.4 Goals and Objectives
+
+The goal is to develop and evaluate a simulation-based intelligent traffic-management prototype that
+supports normal traffic control and a single emergency mission. The measurable objectives are:
+
+ O1. Define and implement a versioned traffic-state representation shared by perception, simulation,
+       control, routing, and visualization.
+
+ O2. Fine-tune a pretrained vehicle detector and evaluate it with multi-object tracking on held-out,
+       source-separated traffic-video segments.
+
+ O3. Construct a manageable multi-intersection SUMO network and repeatable demand scenarios.
+ O4. Implement fixed-time and reproducible rule-adaptive controllers, followed by one feasible RL
+
+       controller.
+ O5. Compute valid ambulance routes using time-based dynamic edge costs and bounded rerouting.
+ O6. Coordinate safe, moving signal priority and restore normal control after passage or cancellation.
+ O7. Provide a React dashboard and FastAPI service boundary for scenario control, monitoring, and
+
+       experiment comparison.
+ O8. Record configurations and outcomes so each reported run can be reproduced and audited.
+CHAPTER 2. PROJECT VISION                                                                            7
+
+2.5 Project Scope
+
+                           Table 2.1: Scope boundaries
+
+In scope                                            Outside the current scope
+
+Recorded-video vehicle detection, tracking,         Live government CCTV integration or citywide
+counts, and queue proxies                           camera calibration
+Selected multi-intersection SUMO network and        All of Lahore or safety-certified field
+synthetic demand                                    deployment
+Fixed, rule-adaptive, and one RL controller         Replacing real traffic-controller firmware
+Single active ambulance with dynamic routing        Multiple competing emergency fleets as a core
+and moving priority                                 case
+Simulated closure or incident as a routing trigger  Visual accident classification or traffic
+                                                    forecasting
+React dashboard, FastAPI services, and              Native mobile application, enforcement, facial
+experiment records                                  or number-plate recognition
+OpenStreetMap import with manual cleanup            A guarantee that map attributes are complete or
+where feasible                                      current
+
+Table 2.1 separates the functions required for the research prototype from capabilities that would create
+unsupported operational or regulatory claims. The in-scope work is sufficient to examine the approved
+project idea: recorded-video traffic perception, a manageable multi-intersection simulation, three levels
+of normal signal control, congestion-aware routing for one ambulance, a moving priority corridor, and
+a dashboard with experimental records. The exclusions are equally important. Live government CCTV,
+direct operation of public signals, full-Lahore coverage, enforcement, number-plate or facial recognition,
+visual accident classification, forecasting, and multiple competing emergency fleets would require data,
+infrastructure, policy, and validation beyond the current project. A road closure may still be introduced
+as a controlled simulation event because it is needed to test rerouting, but the system will not claim
+to detect that incident visually. OpenStreetMap supports network preparation, yet its attributes will be
+checked and corrected rather than assumed complete. These boundaries keep implementation feasible
+and ensure that the final evaluation addresses the stated objectives instead of dispersing effort across
+unrelated features. Within this scope the team divided the work between the two semesters. FYP-I
+covers the synthetic grid, all three controller families, routing, rerouting, the corridor, the video pipeline
+on public data, and a simple dashboard. FYP-II covers the Lahore network, the full dashboard with a
+database, local video, the full evaluation protocol, and an additional rickshaw class.
+
+2.6 Sustainable Development Goal (SDG)
+
+Manzil aligns principally with United Nations Sustainable Development Goal 11, which concerns in-
+clusive, safe, resilient, and sustainable cities [6]. The relevant connection is the investigation of how
+CHAPTER 2. PROJECT VISION  8
+
+existing road and signal capacity might be used more responsively under changing traffic conditions,
+together with a structured method for prioritizing an emergency journey. The prototype can provide
+evidence about simulated waiting time, queue formation, throughput, ambulance travel time, and the re-
+covery of ordinary traffic after priority. These measures are appropriate for a computing project because
+they can be defined and reproduced within the selected environment. The alignment must nevertheless
+be stated cautiously. A SUMO experiment does not demonstrate city-level sustainability, reduce emis-
+sions directly, or establish a public-health outcome. The project also does not model patient condition,
+clinical triage, hospital capacity, or the relationship between travel time and survival. Its secondary
+relevance to health is limited to studying a transport mechanism that may reduce simulated ambulance
+delay. Any stronger claim would require operational traffic data, emergency-service participation, field
+trials, and outcome measures outside the approved scope.
+
+2.7 Constraints
+
+The main constraints are the semester-scale implementation period, limited access to calibrated local
+traffic data, camera perspective and occlusion, finite model-training hardware, and the gap between sim-
+ulated and real driving behavior. These constraints require a network small enough for repeated runs and
+detailed validation. A recognizable urban extract is preferred, but a documented synthetic grid remains
+an acceptable fallback if imported lane connections or signal programs cannot be corrected reliably
+within the schedule. The core experiments assume one active ambulance, valid origin and destina-
+tion edges, controlled traffic generation, and no direct actuation of public infrastructure. Video-derived
+queue length remains an observable proxy unless the camera is calibrated to physical road geometry.
+The tracker is ByteTrack, the learned controller is a parameter-sharing Double DQN, and experiment
+records are stored as versioned files, with a database deferred to FYP-II. Development runs on a laptop
+without an NVIDIA GPU, so detector training runs on Kaggle with two Tesla T4 GPUs, while the DQN
+is trained on CPU. The controller experiments use a 3×3 grid with nine signalized junctions, and the
+signal timing is a 10 s minimum green, 3 s yellow, and 2 s all-red. These choices, and any later changes
+to them, are stored with experiment configurations because they affect interpretation. When an assump-
+tion fails, the system must report the failure or use a declared fallback instead of silently changing the
+scenario. This treatment makes constraints part of the research design and prevents later results from
+appearing more general than the tested conditions support.
+CHAPTER 2. PROJECT VISION                                                                           9
+
+2.8 Business Opportunity
+
+The practical opportunity for Manzil is an experimentation and decision-support environment rather than
+an immediately deployable traffic product. A repeatable simulator can help a technical team compare
+how signal policies react to balanced, uneven, congested, and incident-affected demand. It can also
+show a prospective traffic or emergency-service stakeholder why the fastest ambulance route may differ
+from the shortest route, how a moving corridor progresses, and how much ordinary traffic is disrupted
+during and after priority. The dashboard and stored run manifests make those decisions visible instead of
+presenting the controller as a black box. This capability could support later feasibility studies, training
+demonstrations, or policy prototyping if the research results justify continued work. A commercial or
+public-sector deployment would require substantially more evidence: calibrated local demand, validated
+sensing, compatible roadside controllers, resilient communications, cybersecurity controls, privacy re-
+view, safety assurance, authority approval, and field trials. The current project assumes none of these
+partnerships or approvals and makes no revenue claim. Its immediate value lies in producing a defensible
+prototype and evaluation method that can reveal both benefits and limitations.
+
+2.9 Stakeholders Description/User Characteristics
+
+                           Table 2.2: Stakeholder summary
+
+Stakeholder               Interest                              Expected interaction
+
+Student research team     Correct implementation and            Configure, run, diagnose, export,
+                          defensible experiments                and compare experiments
+Supervisor and evalua-    Scope, rigor, traceability, and       Review report, configurations,
+tors                      evidence quality                      demonstrations, and results
+Prototype operator        Clear scenario and emergency          Use the dashboard; inspect
+                          controls                              warnings and system state
+Prospective  traffic au-  Safety, reliability, network impact,  Future consultation only; no
+thority      emergency    auditability                          current operational role
+Prospective               Travel-time benefit and predictable   Future requirements input only
+service                   priority behavior
+Road users                Fairness and limited disruption       Indirect beneficiaries or affected
+                                                                parties in simulated evaluation
+
+Table 2.2 identifies the parties who influence the prototype or may later be affected by its decisions. The
+student team is the active system operator during development and evaluation, with responsibility for
+scenario configuration, execution, diagnosis, and evidence preservation. The supervisor and evaluation
+panel require transparent scope, reproducible methods, and a clear distinction between implemented
+and planned work. A prototype operator needs understandable controls and visible warnings but is not
+treated as an authorized emergency dispatcher. Traffic authorities and emergency services are prospec-
+CHAPTER 2. PROJECT VISION  10
+
+tive stakeholders whose operational knowledge would be necessary for any future deployment; they are
+not represented as current partners or as having approved the design. Road users are indirect affected
+parties because priority can shift delay between approaches even when an ambulance benefits. This
+stakeholder distinction shapes the interface and evaluation. The dashboard must expose source mode,
+stale data, fallback, route revisions, and corridor state to the operator, while experimental reporting must
+include ordinary-traffic effects for reviewers and prospective authorities. No stakeholder is assigned a
+role, credential, or commitment that is unsupported by the project record.
+
+2.10 Conclusion
+
+This chapter has defined a project vision that is narrower than operational traffic management but broad
+enough to support a substantive research and development investigation. Manzil connects traffic obser-
+vation, comparative signal control, dynamic emergency routing, and a moving green corridor inside a
+controlled and auditable prototype. The two evidence paths remain separate, and the core emergency
+case contains one active ambulance so that route and priority behavior can be examined without inventing
+an untested fleet-arbitration policy. The objectives identify the controlled comparison and corresponding
+measures for each claim. Scope boundaries exclude live government integration, citywide deployment,
+forecasting, enforcement, and unsupported safety or health conclusions. Constraints concerning data,
+map quality, hardware, and simulation fidelity are incorporated into configuration and reporting. Stake-
+holder roles are limited to those supported by the project record, and credible evaluation requires legal
+behavior, reproducible runs, visible failure, and balanced reporting of benefits and side effects. These
+decisions guide the literature review in Chapter 3, which examines the research basis for each technical
+component and identifies the limitations that Manzil's methodology must address.
