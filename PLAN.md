@@ -163,6 +163,7 @@ One line per session or cloud task, newest last: date, who/where, what changed, 
 | 15 Nov | Ibrahim + Claude (laptop) | Task 6.4b: full report review against FYPFast template and sample headings; fixes in Ch 1–10 and bibliography; `check_report.py` added; 149 pages, all checks pass | context §50.18, `Manzil_D2_Report/check_report.py` |
 | 15 Nov | Ibrahim + Claude (laptop) | FYP-II parallel setup: workstreams W1–W6 with file ownership, merge rules, video/label rules and prompts; Phase 7 added | `docs/workstreams/`, context §50.19 |
 | 26 Nov | Ibrahim + Claude (laptop) | Report Chapter 1 rewritten in plain first person ("we"), shorter sentences, no hyphenated words, no FYP/deliverable wording; PDF rebuilt (150 pages), `check_report.py` passes | `Manzil_D2_Report/chapters/01_introduction.tex`, `F26-104_Deliverable-3_Report.pdf`, context §50.20 |
+| 26 Nov | Ibrahim + Claude (laptop) | Chapter 1 second pass: fewer, longer paragraphs (each 150 to 250 words, one per heading except Purpose and Conclusion with two); PDF rebuilt (150 pages), checks pass | same files, context §50.20 |
 
 ## FYP-2 backlog (goes into the Chapter 10 plan)
 
