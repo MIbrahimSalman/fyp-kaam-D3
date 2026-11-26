@@ -163,6 +163,7 @@ One line per session or cloud task, newest last: date, who/where, what changed, 
 | 15 Nov | Ibrahim + Claude (laptop) | Tasks 6.2–6.4: Ch 1–6 trimmed (no new sections, no change wording, date 22 Nov); Ch 7, 8, 9, 10 written after reviewing the R&D sample reports; 147 tests pass; report 142 pages, 0 errors/overfull/undefined | `Manzil_D2_Report/chapters/07–10`, context §50.17 |
 | 15 Nov | Ibrahim + Claude (laptop) | Task 6.4b: full report review against FYPFast template and sample headings; fixes in Ch 1–10 and bibliography; `check_report.py` added; 149 pages, all checks pass | context §50.18, `Manzil_D2_Report/check_report.py` |
 | 15 Nov | Ibrahim + Claude (laptop) | FYP-II parallel setup: workstreams W1–W6 with file ownership, merge rules, video/label rules and prompts; Phase 7 added | `docs/workstreams/`, context §50.19 |
+| 27 Nov | Ibrahim + Claude (laptop) | Report Chapter 1 replaced with Ibrahim's reworded version (`updated/Ch1.txt`), after 15 meaning fixes, original headings and citation keys kept, compound hyphens removed, American spelling; PDF rebuilt (Ch 1 still pp. 15-17, `check_report.py` passes); `txt_chapters/Ch1.txt` re-extracted | `Manzil_D2_Report/chapters/01_introduction.tex`, `F26-104_Deliverable-3_Report.pdf`, Context §50.20 |
 
 ## FYP-2 backlog (goes into the Chapter 10 plan)
 

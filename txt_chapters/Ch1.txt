@@ -2,101 +2,53 @@ CHAPTER 1. INTRODUCTION  1
 
 Chapter 1 Introduction
 
-This chapter introduces the Deliverable III report for Manzil, an intelligent traffic and emergency-routing
-prototype developed as a FAST–NUCES Final Year Project. It states what the report is for, who is
-expected to read it, and the terms used throughout the later chapters. It also separates work that has been
-implemented and measured during FYP-I from work that remains planned for FYP-II, and the report
-keeps that boundary clear.
+This is the report for Deliverable III on the Manzil smart traffic and emergency routing prototype, developed as a FAST–NUCES Final Year Project. It defines the remit of the report and outlines for whom it is intended. Furthermore, it defines the key terminology used. A distinction is also made between what was implemented and tested during FYP-I and what is yet to be implemented during FYP-II.
 
 1.1 Purpose of this Document
 
-This Deliverable III report records the implemented FYP-I state of the Manzil prototype and the ev-
-idence produced by it. It presents the requirements, method, and design of the system together with
-its implementation and measured results. During FYP-I the team built a SUMO-based simulation core
-with a single simulation adapter and safety filter, fixed-time, pressure-based adaptive, and parameter-
-sharing Double DQN signal controllers, time-based ambulance routing with closure-triggered rerouting,
-a moving green corridor, a YOLO-based vehicle detection, tracking, and counting pipeline trained on
-Kaggle, and a first web dashboard. All controller, routing, and corridor results come from repeated,
-seeded SUMO runs on a synthetic 3×3 signalized grid, and all perception results come from public
-UA-DETRAC and COCO data. The report therefore claims measured simulation and video evidence,
-not field performance or deployment readiness. Any performance statement in this report is tied to a
-recorded configuration, matched baseline, stated metric, and repeatable set of runs.
+This report defines and documents the implemented aspects of the Manzil prototype from FYP-I. It covers the system requirements, approach and design, together with the implementation and measured results. Implementation and testing were undertaken during FYP-I. These included a SUMO based simulation core with a single simulation adapter and safety filter, fixed time, pressure based adaptive and parameter sharing Double DQN signal controllers, time based ambulance routing with rerouting upon closure, a moving green corridor, a Kaggle trained YOLO vehicle detection, tracking and counting pipeline, and an initial web dashboard. Controller, routing and green corridor testing was performed through multiple seeded SUMO simulations on a synthetic 3×3 signalized grid. Perception testing was conducted on the publicly available UA-DETRAC and COCO datasets. Thus, this report provides simulation and video test evidence. It does not claim real world performance or deployment readiness. All performance claims are associated with a recorded system configuration, a matched baseline and a stated metric, and are based on a repeatable set of runs.
 
 1.2 Intended Audience
 
-The primary audience is the FAST–NUCES FYP supervisor and evaluation panel. They require enough
-detail to judge the relevance of the evaluation objectives, the implemented software, and the validity of
-the experiments. The report is also an engineering reference for the student implementation team. Team
-members should be able to derive component responsibilities, interface fields, scenario configurations,
-fallback behavior, and verification from the chapters that follow. A secondary audience consists of
-prospective traffic-management and emergency-service stakeholders who may wish to understand the
-problem, operational assumptions, and limits of the prototype. These stakeholders are not represented
-as current clients, project partners, or approving authorities. The writing therefore explains domain
-terms when they first become important, but it retains the precision needed for implementation and
-academic review. Business-level implications are kept separate from technical evidence, and proposed
-functions are not described as operational capabilities. This distinction helps each audience find relevant
-CHAPTER 1. INTRODUCTION                                                                         2
+Primarily, this document is intended for the FAST–NUCES FYP supervisor and evaluation panel. They need sufficient information to assess the relevance of the evaluation objectives, the implemented software and the validity of the experiments. Secondly, it serves as an engineering reference for the student implementation team. Team members should be able to use the later chapters to determine component responsibilities, interface fields, scenario configurations, fallback behavior and verification. Thirdly, prospective traffic management and emergency service stakeholders may wish to gain an understanding of the problem, the operational assumptions and the limitations of the prototype. However, these stakeholders are not represented as current clients, project partners or approving authorities. While key domain terminology is explained when it first becomes important, the document still maintains the precision required for both implementation and academic review. Business implications are kept separate from technical evidence, and proposed functions are not described as operational capabilities. This
 
-information without confusing a research prototype with an operational traffic-control system.
+CHAPTER 1. INTRODUCTION  2
+
+ensures that relevant information is accessible to each audience and that a research prototype is not mistaken for an operational traffic control system.
 
 1.3 Definitions, Acronyms, and Abbreviations
 
-Key terms and abbreviations used throughout the report are defined below.
+Below are definitions for key terminology and abbreviations used throughout the report.
 
-A*: A shortest-path search using accumulated cost and an admissible lower-bound heuristic [1].
+A*: A shortest path search that uses accumulated cost and an admissible lower bound heuristic [1].
 API: Application Programming Interface.
-ByteTrack: A multi-object tracker that associates high-confidence detections first and then recovers
-objects from lower-confidence detections [2].
+ByteTrack: A multiple object tracker which first associates high confidence detections and then recovers objects from lower confidence detections [2].
 CV: Computer vision used to derive observable traffic indicators from video.
-DQN: Deep Q-Network, a value-based reinforcement-learning method that approximates action values
-with a neural network.
-Double DQN: A Deep Q-Network variant that selects the next action with the online network and eval-
-uates it with a target network to reduce overestimation [3].
-FYP-I / FYP-II: The first and second semesters of the Final Year Project; this report closes FYP-I.
-Green corridor: A moving sequence of bounded signal-priority interventions ahead of an ambulance.
-MAE: Mean absolute error, the average absolute difference between estimated and true values.
-mAP50: Mean average precision at an intersection-over-union threshold of 0.5, a standard detection
-accuracy measure.
-MOT: Multi-object tracking, which associates detections into identities across video frames.
-Queue proxy: An estimate of tracked slow or stationary vehicles in a defined lane region.
-RL: Reinforcement learning, in which a policy is optimized using states, actions, and cumulative reward.
-Signal preemption: A controlled signal change for an emergency request, including transition and re-
-covery.
-SUMO: Simulation of Urban MObility, a microscopic road-traffic simulator.
-Throughput: Vehicles leaving a measured movement or network region per unit time.
-TraCI: Traffic Control Interface for reading and changing a running SUMO simulation; libsumo offers
-the same interface inside the Python process.
-Traffic-state contract: A versioned observation structure with source, time, units, confidence, and valid-
-ity.
-UA-DETRAC: A public benchmark for detecting and tracking vehicles in video from fixed traffic cam-
-eras [4].
+DQN: Deep Q-Network. This is a value based reinforcement learning method which uses a neural network to approximate action values.
+Double DQN: A DQN variant in which the online network selects the next action and the target network evaluates it. This reduces overestimation [3].
+FYP-I / FYP-II: The first and second semesters of the Final Year Project. This report closes FYP-I.
+Green corridor: A moving sequence of bounded signal priority interventions ahead of an ambulance.
+MAE: Mean absolute error, the mean of the absolute difference between estimated and true values.
+mAP50: Mean average precision at an intersection over union threshold of 0.5. This is a standard measure of detection accuracy.
+MOT: Multiple object tracking, which links detections into identities across successive video frames.
+Queue proxy: An estimate of the tracked slow or stationary vehicles within a defined lane region.
+RL: Reinforcement learning. A policy is optimized using states, actions and a cumulative reward.
+Signal preemption: A controlled change of signal operation for an emergency request, including the transition and the subsequent recovery.
+SUMO: Simulation of Urban MObility. This is a microscopic road traffic simulator.
+Throughput: Number of vehicles leaving a measured movement or network region per unit time.
+TraCI: Traffic Control Interface. This allows a running SUMO simulation to be read and changed. The same interface is provided by libsumo inside the Python process.
+Traffic state contract: A versioned observation structure specifying source, time, units, confidence and validity.
+UA-DETRAC: A public benchmark for vehicle detection and tracking in video from fixed traffic cameras [4].
 Waiting time: Time accumulated below the configured SUMO speed threshold.
-WAPE: Weighted absolute percentage error, the sum of absolute count errors divided by the sum of true
-CHAPTER 1. INTRODUCTION                                                    3
 
-counts.
-YOLO: You Only Look Once, a family of one-stage object-detection methods.
+CHAPTER 1. INTRODUCTION  3
+
+WAPE: Weighted absolute percentage error. This is the sum of absolute count errors divided by the sum of true counts.
+YOLO: You Only Look Once, a family of single stage object detection methods.
 YOLO11s: The small model of the Ultralytics YOLO11 detector family [5].
 
 1.4 Conclusion
 
-This chapter has established Manzil as a reproducible investigation of interacting traffic decisions rather
-than a collection of unrelated artificial-intelligence features. The system studies how observable traffic
-conditions can inform signal control, how dynamic routing can respond to network delay, and how an
-ambulance can receive temporary priority without ignoring ordinary traffic. It has also fixed the evidence
-boundary for this deliverable. The repository now contains implemented controllers, a trained detector
-and DQN policy, a validated synthetic SUMO network, and recorded experimental results, so these are
-reported as measured evidence. The Lahore road network, the full five-screen dashboard with a database,
-filmed local video, and the full ten-seed protocol remain FYP-II work and are described as planned.
-The defined terminology prevents video-derived proxies from being confused with exact simulator state
-and distinguishes a moving corridor from an unsafe instruction to turn every signal green. A choice
-is described as implemented only where its code, configuration, test evidence, or experimental record
-exists in the project repository.
+This chapter has established Manzil as a reproducible investigation of interacting traffic decisions rather than a collection of unrelated artificial intelligence features. It studies how observable traffic conditions can inform signal control, how dynamic routing can respond to network delay and how an ambulance can be temporarily prioritized without ignoring ordinary traffic. Furthermore, it has fixed the evidence boundary for this deliverable. Controllers, a trained detector and DQN policy, a validated synthetic SUMO network and recorded experimental results are all present in the repository and are therefore reported as measured evidence. The Lahore road network, the complete five screen dashboard with a database, filmed local video and the complete ten seed protocol remain FYP-II work and are described as planned. The definitions ensure that video derived proxies are not mistaken for exact simulator state. Likewise, they make clear that a moving green corridor is not an unsafe instruction to turn every signal green. A choice is described as implemented only where its code, configuration, test evidence or experimental record exists in the project repository.
 
-The rest of the report is organized as follows. Chapter 2 presents the project vision, objectives, and scope.
-Chapter 3 reviews the related research on traffic perception, signal control, reinforcement learning, and
-emergency routing. Chapter 4 specifies the functional and non-functional requirements. Chapter 5
-describes the approach and the experimental protocol. Chapter 6 gives the high-level and low-level
-design. Chapter 7 describes the implementation and its test cases. Chapter 8 is the user manual of the
-prototype. Chapter 9 reports and discusses the experimental results. Chapter 10 concludes FYP-I and
-gives the plan for FYP-II.
+The remainder of this report is organized as follows. Chapter 2 defines the project vision, objectives and scope. Chapter 3 reviews the related research on traffic perception, signal control, reinforcement learning and emergency routing. Chapter 4 specifies both the functional and nonfunctional requirements. Chapter 5 explains the approach and the experimental protocol. Chapter 6 provides the high level and low level design. Chapter 7 details the implementation together with its test cases. Chapter 8 provides the user manual of the prototype. Chapter 9 reports and discusses the experimental results. Finally, Chapter 10 concludes FYP-I and outlines the plan for FYP-II.

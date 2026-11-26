@@ -1830,3 +1830,21 @@ Ibrahim asked for FYP-II work to run in parallel with several Claude agents, wit
 - **Still open:**
   - the Lahore area and hospital (blocks W1);
   - who checks the labelled test subset (W2).
+
+## 50.20 Report Chapter 1 reworded (27 Nov 2026)
+
+- **What.** Ibrahim supplied a reworded Chapter 1 (`updated/Ch1.txt`). It replaces the text of `Manzil_D2_Report/chapters/01_introduction.tex`, with the original section headings and BibTeX keys kept.
+- **Meaning fixes made to the reworded text before use** (each restored to the original meaning):
+  - three controllers (fixed time, pressure based adaptive, parameter sharing Double DQN), not one;
+  - the safety filter restored next to the simulation adapter;
+  - "green wave" changed back to "green corridor" (a green wave is a different technique);
+  - definitions of A*, DQN (reinforcement learning, not just machine learning), green corridor, queue proxy, traffic state contract and YOLO restored;
+  - "fallback behavior and verification", "synthetic" grid, "reproducible investigation" and the rule that a choice is called implemented only where repository evidence exists, all restored.
+- **Style decisions (Ibrahim, 27 Nov).**
+  - Compound hyphens removed ("time based", "rerouting", "preemption", "nonfunctional"); hyphens inside names kept (FYP-I, FAST--NUCES, UA-DETRAC, Deep Q-Network).
+  - American spelling, to match Chapters 2–10.
+  - LaTeX line-break hyphenation in the PDF is unchanged.
+- **Result.**
+  - The PDF was rebuilt; Chapter 1 is still pages 15–17, so the page numbers of the other chapters are unchanged.
+  - `check_report.py` passes with no overfull boxes.
+  - `txt_chapters/Ch1.txt` was re-extracted without `-layout` (one line per paragraph and one line per definition), so it has no line-break hyphens.
